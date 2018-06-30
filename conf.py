@@ -2,11 +2,7 @@ import os
 
 from enum import Enum
 
-from run_mode import mode
-
-# base
-
-PROJECT_DIR = os.path.basename(__file__)
+from base_conf import mode, PROJECT_DIR
 
 # path
 RESOURCE_DIR = os.path.join(PROJECT_DIR, "resource", mode.name)

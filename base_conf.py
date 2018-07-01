@@ -21,8 +21,8 @@ class LogLevel(Enum):
 
 mode = Mode.DEV
 
-logLevel = LogLevel.DEBUG
+logLevel = LogLevel.DEBUG.value
 __LOG_FORMAT = '%(levelname)5s %(asctime)s [%(filename)s line:%(lineno)d] %(message)s'
 logging.basicConfig(format=__LOG_FORMAT, level=logLevel)
 
-wkdir = os.path.join(PROJECT_DIR, "tmp", int(time.time()))
+wkdir = os.path.join(PROJECT_DIR, "tmp", str(int(time.time())))

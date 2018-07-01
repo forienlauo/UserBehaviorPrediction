@@ -2,6 +2,8 @@
 import os
 import sys
 
+import shutil
+
 
 def main():
     # OPT(20180630) support option
@@ -17,10 +19,15 @@ def main():
     base_conf.logLevel = base_conf.LogLevel[logLevel.upper()]
     base_conf.wkdir = wkdir
     # REFACTOR(20180701) remove to check args
-    if os.path.isdir(wkdir) and len(os.listdir(wkdir)) > 0:
-        raise IOError("Non empty work dir: %s" % wkdir)
-    if not os.path.isdir(wkdir):
-        os.makedirs(wkdir)
+    # TODO(20180701) support cache
+    # if os.path.isdir(wkdir) and len(os.listdir(wkdir)) > 0:
+    #     raise IOError("non empty work dir: %s" % wkdir)
+    # if not os.path.isdir(wkdir):
+    #     os.makedirs(wkdir)
+    # test code
+    if os.path.isdir(wkdir):
+        shutil.rmtree(wkdir)
+    os.makedirs(wkdir)
 
     from src.driver import Driver
     Driver().run()

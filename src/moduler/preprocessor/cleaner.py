@@ -1,6 +1,7 @@
 # coding=utf-8
 import datetime
 import glob
+import json
 import logging
 import os
 
@@ -14,6 +15,7 @@ class Cleaner(Moduler):
             self,
             cdrDir=None, propertyDir=None,
             cleanCdrDir=None, cleanPropertyDir=None, dirtyCdrDir=None, dirtyPropertyDir=None,
+            cleanPptFmtFileName=None, cleanCdrFmtFileName=None,
     ):
         super(Cleaner, self).__init__()
         self.cdrDir = cdrDir
@@ -22,6 +24,8 @@ class Cleaner(Moduler):
         self.cleanPropertyDir = cleanPropertyDir
         self.dirtyCdrDir = dirtyCdrDir
         self.dirtyPropertyDir = dirtyPropertyDir
+        self.cleanPptFmtFileName = cleanPptFmtFileName
+        self.cleanCdrFmtFileName = cleanCdrFmtFileName
 
     def run(self):
         self.__init()
@@ -30,19 +34,21 @@ class Cleaner(Moduler):
         pptCleaner = PropertyCleaner(
             inputDir=self.propertyDir,
             cleanDir=self.cleanPropertyDir, dirtyDir=self.dirtyPropertyDir,
+            cleanFmtFileName=self.cleanPptFmtFileName,
         )
         pptCleaner.run()
         cleanCallings = pptCleaner.getCleanCalling()
-        logging.info("Output clean property: %s" % self.cleanPropertyDir)
-        logging.info("Output dirty property: %s" % self.dirtyPropertyDir)
+        logging.info("output clean property: %s" % self.cleanPropertyDir)
+        logging.info("output dirty property: %s" % self.dirtyPropertyDir)
 
         logging.info("start to clean cdr: %s" % self.cdrDir)
         CdrCleaner(
             inputDir=self.cdrDir, cleanCallings=cleanCallings,
             cleanDir=self.cleanCdrDir, dirtyDir=self.dirtyCdrDir,
+            cleanFmtFileName=self.cleanCdrFmtFileName,
         ).run()
-        logging.info("Output clean cdr: %s" % self.cleanCdrDir)
-        logging.info("Output dirty cdr: %s" % self.dirtyCdrDir)
+        logging.info("output clean cdr: %s" % self.cleanCdrDir)
+        logging.info("output dirty cdr: %s" % self.dirtyCdrDir)
 
     def __init(self):
         os.makedirs(self.cleanCdrDir)
@@ -56,19 +62,23 @@ class PropertyCleaner(Moduler):
             self,
             inputDir=None,
             cleanDir=None, dirtyDir=None,
+            cleanFmtFileName=None,
     ):
         super(PropertyCleaner, self).__init__()
         self.inputDir = inputDir
         self.cleanDir = cleanDir
         self.dirtyDir = dirtyDir
         self.cleanCallings = set()
+        self.cleanFmtFilePath = os.path.join(self.cleanDir, cleanFmtFileName)
         self.stat = None
 
     # OPT(20180701) parallel
     def run(self):
+        logging.debug("dump format: %s" % self.cleanFmtFilePath)
+        self.__dumpFormat()
         self.stat = _PropertyStat()
 
-        inputFilePaths = glob.glob(os.path.join(self.inputDir, "*"))
+        inputFilePaths = glob.glob(os.path.join(self.inputDir, "*.%s" % conf.DATA_FILE_SUFFIX))
         for inputFilePath in inputFilePaths:
             cleanLines = list()
             dirtyLines = list()
@@ -97,10 +107,13 @@ class PropertyCleaner(Moduler):
                 with open(dirtyFilePath, "w") as wfile:
                     wfile.write(conf.ROW_SEPERATOR.join(dirtyLines))
 
-        logging.debug("property stat: %s" % self.stat)
+        logging.debug("%s stat: %s" % (self.name, self.stat,))
 
     def getCleanCalling(self):
         return set(self.cleanCallings)
+
+    def __dumpFormat(self):
+        _dumpFormat(conf.PropertyDict, self.cleanFmtFilePath)
 
     def __check(self, cols):
         if len(cols) < conf.PropertyDict.COL_CNT:
@@ -135,19 +148,23 @@ class CdrCleaner(Moduler):
             self,
             inputDir=None, cleanCallings=None,
             cleanDir=None, dirtyDir=None,
+            cleanFmtFileName=None,
     ):
         super(CdrCleaner, self).__init__()
         self.inputDir = inputDir
         self.cleanCallings = cleanCallings
         self.cleanDir = cleanDir
         self.dirtyDir = dirtyDir
+        self.cleanFmtFilePath = os.path.join(self.cleanDir, cleanFmtFileName)
         self.stat = None
 
     # OPT(20180701) parallel
     def run(self):
+        logging.debug("dump format: %s" % self.cleanFmtFilePath)
+        self.__dumpFormat()
         self.stat = _CdrStat()
 
-        inputFilePaths = glob.glob(os.path.join(self.inputDir, "*"))
+        inputFilePaths = glob.glob(os.path.join(self.inputDir, "*.%s" % conf.DATA_FILE_SUFFIX))
         for inputFilePath in inputFilePaths:
             cleanLines = []
             dirtyLines = []
@@ -179,12 +196,16 @@ class CdrCleaner(Moduler):
                 with open(dirtyFilePath, "w") as wfile:
                     wfile.write(conf.ROW_SEPERATOR.join(dirtyLines))
 
-        logging.debug("cdr stat: %s" % self.stat)
+        logging.debug("%s stat: %s" % (self.name, self.stat,))
+
+    def __dumpFormat(self):
+        _dumpFormat(conf.CdrDict, self.cleanFmtFilePath)
 
     # TODO(20180701) check duplicate cdr
     def __check(self, cols):
         if len(cols) < conf.CdrDict.COL_CNT:
             return False
+        # REFACTOR(20180701) load format
         C = conf.CdrDict.Column
         if not (30 <= len(cols[C.CALLING.value]) <= 32 and cols[C.CALLING.value] in self.cleanCallings):
             return False
@@ -237,3 +258,14 @@ class _PropertyStat(Stat):
         super(_PropertyStat, self).__init__()
         self.dirtyPropertyCnt = 0
         self.cleanPropertyCnt = 0
+
+
+def _dumpFormat(InitialFeatureDict, cleanFormatFilePath):
+    formatDict = dict()
+    for colEnum in InitialFeatureDict.Column:
+        colName = colEnum.name
+        colNo = colEnum.value
+        if colNo in InitialFeatureDict.USEFUL_COLS:
+            formatDict[colName] = len(formatDict)
+    with open(cleanFormatFilePath, "w") as wfile:
+        wfile.write(json.dumps(formatDict))

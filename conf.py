@@ -5,17 +5,29 @@ from enum import Enum
 
 from base_conf import mode as MODE, PROJECT_DIR, wkdir as WKDIR
 
+# TODO(20180630) check whether paths exit
 # input path
 RESOURCE_DIR = os.path.join(PROJECT_DIR, "resource", MODE.name)
-# TODO(20180630) check whether paths exit
 CDR_DIR = os.path.join(RESOURCE_DIR, "cdr")
 PROPERTY_DIR = os.path.join(RESOURCE_DIR, "property")
+DATA_FILE_SUFFIX = "data.txt"
 
 # middle-state data path
+# cleaner
 CLEAN_CDR_DIR = os.path.join(WKDIR, "clean", "cdr")
-CLEAN_PROPERTY_DIR = os.path.join(WKDIR, "clean", "property")
+CLEAN_PPT_DIR = os.path.join(WKDIR, "clean", "property")
 DIRTY_CDR_DIR = os.path.join(WKDIR, "dirty", "cdr")
-DIRTY_PROPERTY_DIR = os.path.join(WKDIR, "dirty", "property")
+DIRTY_PPT_DIR = os.path.join(WKDIR, "dirty", "property")
+# translator
+TRANSLATE_CDR_DIR = os.path.join(WKDIR, "translate", "cdr")
+TRANSLATE_PPT_DIR = os.path.join(WKDIR, "translate", "property")
+
+# special file name
+FORMAT_FILE_SUFFIX = "format.json"
+CLEAN_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
+CLEAN_PPT_FORMAT_FILE = "__property.%s" % FORMAT_FILE_SUFFIX
+TL_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
+TL_PPT_FORMAT_FILE = "__property.%s" % FORMAT_FILE_SUFFIX
 
 
 # Initial FeatureDict
@@ -45,13 +57,15 @@ class CdrDict(object):
         Column.CALLED.value,
         Column.START_TIME.value,
         Column.CALL_TIME.value,
-        # TODO(20180701) normalize to range 0~255
         Column.COST.value,
         Column.CDR_TYPE.value,
         Column.TALK_TYPE.value,
-        # TODO(20180701) normalize to range 0~255
         Column.CALLED_AREA.value,
     }
+
+    # TODO(20180701) tuning refer to stat in translating
+    CALL_TIME_UNIT = 5
+    COST_UNIT = 4
 
     CDR_TYPE_DICT = {
         "cvoi": 0,  # C网语音

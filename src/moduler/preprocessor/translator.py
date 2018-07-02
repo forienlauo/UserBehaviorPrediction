@@ -42,7 +42,7 @@ class Translator(Moduler):
         logging.info("start to translate cdr: %s" % self.cleanCdrDir)
         CdrTranslator(
             cleanDir=self.cleanCdrDir, cleanFmtFileName=self.cleanCdrFmtFileName,
-            translateDir=self.translateCdrDir, tlFmtFileName=self.tlPptFmtFileName,
+            translateDir=self.translateCdrDir, tlFmtFileName=self.tlCdrFmtFileName,
         ).run()
         logging.info("output translate cdr: %s" % self.translateCdrDir)
 
@@ -165,7 +165,8 @@ class CdrTranslator(_AbstractTranslator):
         self.stat.cntByCostUnit[costUnit] += 1
 
     def _printStat(self):
-        logging.debug("%s stat: %s" % (self.name, self.stat,))
+        logging.debug("%s stat print closed for performance" % self.stat)
+        # logging.debug("%s stat: %s" % (self.name, self.stat,))
 
 
 class _CdrStat(Stat):

@@ -7,6 +7,9 @@ class Moduler(object):
         super(Moduler, self).__init__()
         self.name = self.__class__.__name__
 
+    def run(self):
+        raise NotImplementedError()
+
 
 class Stat(object):
     def __init__(self):

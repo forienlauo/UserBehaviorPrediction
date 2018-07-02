@@ -21,6 +21,8 @@ DIRTY_PPT_DIR = os.path.join(WKDIR, "dirty", "property")
 # translator
 TRANSLATE_CDR_DIR = os.path.join(WKDIR, "translate", "cdr")
 TRANSLATE_PPT_DIR = os.path.join(WKDIR, "translate", "property")
+# aggregate
+AGGREGATE_CDR_DIR = os.path.join(WKDIR, "aggregate")
 
 # special file name
 FORMAT_FILE_SUFFIX = "format.json"
@@ -28,6 +30,7 @@ CLEAN_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
 CLEAN_PPT_FORMAT_FILE = "__property.%s" % FORMAT_FILE_SUFFIX
 TL_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
 TL_PPT_FORMAT_FILE = "__property.%s" % FORMAT_FILE_SUFFIX
+AGG_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
 
 
 # Initial FeatureDict
@@ -168,3 +171,15 @@ class PropertyDict(object):
 
 COL_SEPERATOR = "\t"
 ROW_SEPERATOR = "\n"
+
+
+class AggregateTimeUnit(Enum):
+    (
+        HOUR_6,
+        HOUR_1,
+        MIN_10,
+    ) = range(3)
+
+
+# TODO(20180703) tuning refer to stat in aggregating
+NORMAL_CALL_RATE = 20 / 3600.0

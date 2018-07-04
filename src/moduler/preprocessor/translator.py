@@ -118,9 +118,6 @@ class PropertyTranslator(_AbstractTranslator):
         fmtDict = self._formatDict
         translateCols[fmtDict["PLAN_NAME"]] = str(conf.PropertyDict.PLAN_NAME_DICT[cols[fmtDict["PLAN_NAME"]]])
         translateCols[fmtDict["USER_TYPE"]] = str(conf.PropertyDict.USER_TYPE_DICT[cols[fmtDict["USER_TYPE"]]])
-        translateCols[fmtDict["OPEN_DATE"]] = datetime.datetime \
-            .strptime(cols[fmtDict["OPEN_DATE"]], "%Y-%m-%d %H:%M:%S") \
-            .strftime("%Y%m%d%H%M%S")
         translateCols[fmtDict["SELL_PRODUCT"]] = str(
             conf.PropertyDict.SELL_PRODUCT_DICT[cols[fmtDict["SELL_PRODUCT"]]])
         return translateCols

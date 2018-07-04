@@ -21,8 +21,10 @@ DIRTY_PPT_DIR = os.path.join(WKDIR, "dirty", "property")
 # translator
 TRANSLATE_CDR_DIR = os.path.join(WKDIR, "translate", "cdr")
 TRANSLATE_PPT_DIR = os.path.join(WKDIR, "translate", "property")
-# aggregate
+# aggregator
 AGGREGATE_CDR_DIR = os.path.join(WKDIR, "aggregate")
+# feature frame 3d constructor
+FEATURE_FRAME_3D_DIR = os.path.join(WKDIR, "featureFrame3d")
 
 # special file name
 FORMAT_FILE_SUFFIX = "format.json"
@@ -31,6 +33,8 @@ CLEAN_PPT_FORMAT_FILE = "__property.%s" % FORMAT_FILE_SUFFIX
 TL_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
 TL_PPT_FORMAT_FILE = "__property.%s" % FORMAT_FILE_SUFFIX
 AGG_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
+FEATURE_FRAME_FORMAT_FILE = "__ff.%s" % FORMAT_FILE_SUFFIX
+FF_FIRST_ROW_FORMAT_FILE = "__ffFirstRow.%s" % FORMAT_FILE_SUFFIX
 
 
 # Initial FeatureDict
@@ -109,12 +113,8 @@ class PropertyDict(object):
 
     USEFUL_COLS = {
         Column.CALLING.value,
-        # TODO(20180701) parse_time_fraud?
         Column.PLAN_NAME.value,
         Column.USER_TYPE.value,
-        # TODO(20180701) parse_time_normal
-        Column.OPEN_DATE.value,
-        # TODO(20180701) parse_sell_product?
         Column.SELL_PRODUCT.value,
     }
 
@@ -183,3 +183,8 @@ class AggregateTimeUnit(Enum):
 
 # TODO(20180703) tuning refer to stat in aggregating
 NORMAL_CALL_RATE = 20 / 3600.0
+
+
+class FeatureFrame3dDict(object):
+    # TODO(20180703) accurate calculate COPY_CNT judging by p
+    COPY_CNT = 10

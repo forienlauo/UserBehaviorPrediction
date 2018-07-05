@@ -5,6 +5,7 @@ import json
 import logging
 import os
 
+import base_conf as bconf
 import conf
 from src.moduler.moduler import Moduler, Stat
 
@@ -26,27 +27,30 @@ class Cleaner(Moduler):
         self.dirtyPropertyDir = dirtyPropertyDir
         self.cleanPptFmtFileName = cleanPptFmtFileName
         self.cleanCdrFmtFileName = cleanCdrFmtFileName
+        self.__cdrCleaner = None
+        self.__propertyCleaner = None
 
     def run(self):
         self.__init()
 
         logging.info("start to clean property: %s" % self.propertyDir)
-        pptCleaner = PropertyCleaner(
+        self.__propertyCleaner = PropertyCleaner(
             inputDir=self.propertyDir,
             cleanDir=self.cleanPropertyDir, dirtyDir=self.dirtyPropertyDir,
             cleanFmtFileName=self.cleanPptFmtFileName,
         )
-        pptCleaner.run()
-        cleanCallings = pptCleaner.getCleanCalling()
+        self.__propertyCleaner.run()
+        cleanCallings = self.__propertyCleaner.getCleanCalling()
         logging.info("output clean property: %s" % self.cleanPropertyDir)
         logging.info("output dirty property: %s" % self.dirtyPropertyDir)
 
         logging.info("start to clean cdr: %s" % self.cdrDir)
-        CdrCleaner(
+        self.__cdrCleaner = CdrCleaner(
             inputDir=self.cdrDir, cleanCallings=cleanCallings,
             cleanDir=self.cleanCdrDir, dirtyDir=self.dirtyCdrDir,
             cleanFmtFileName=self.cleanCdrFmtFileName,
-        ).run()
+        )
+        self.__cdrCleaner.run()
         logging.info("output clean cdr: %s" % self.cleanCdrDir)
         logging.info("output dirty cdr: %s" % self.dirtyCdrDir)
 
@@ -55,6 +59,12 @@ class Cleaner(Moduler):
         os.makedirs(self.dirtyCdrDir)
         os.makedirs(self.cleanPropertyDir)
         os.makedirs(self.dirtyPropertyDir)
+
+    def checkExistCleanData(self):
+        assert os.path.isdir(self.cleanCdrDir) and os.path.isdir(self.dirtyCdrDir) \
+               and os.path.isdir(self.cleanPropertyDir) and os.path.isdir(self.dirtyPropertyDir)
+        assert self.__cdrCleaner is not None and self.__propertyCleaner is not None
+        return self.__cdrCleaner.stat.cleanCdrCnt > 0 and self.__propertyCleaner.stat.cleanPropertyCnt
 
 
 class PropertyCleaner(Moduler):
@@ -78,19 +88,19 @@ class PropertyCleaner(Moduler):
         self.__dumpFormat()
         self.stat = _PropertyStat()
 
-        inputFilePaths = glob.glob(os.path.join(self.inputDir, "*.%s" % conf.DATA_FILE_SUFFIX))
+        inputFilePaths = glob.glob(os.path.join(self.inputDir, "*.%s" % bconf.DATA_FILE_SUFFIX))
         for inputFilePath in inputFilePaths:
             cleanLines = list()
             dirtyLines = list()
             with open(inputFilePath, "r") as rfile:
                 for line in rfile:
-                    cols = map(lambda col: col.strip(), line.strip().split(conf.PropertyDict.SEPERATOR))
+                    cols = map(lambda col: col.strip(), line.strip().split(bconf.PropertyDict.SEPERATOR))
                     isClean = self.__check(cols)
                     if isClean:
-                        self.cleanCallings.add(cols[conf.PropertyDict.Column.CALLING.value])
+                        self.cleanCallings.add(cols[bconf.PropertyDict.Column.CALLING.value])
                         usefulCols = list()
                         for colNo in range(len(cols)):
-                            if colNo in conf.PropertyDict.USEFUL_COLS:
+                            if colNo in bconf.PropertyDict.USEFUL_COLS:
                                 usefulCols.append(cols[colNo])
                         cleanLines.append(conf.COL_SEPERATOR.join(usefulCols))
                         self.stat.cleanPropertyCnt += 1
@@ -113,17 +123,17 @@ class PropertyCleaner(Moduler):
         return set(self.cleanCallings)
 
     def __dumpFormat(self):
-        _dumpFormat(conf.PropertyDict, self.cleanFmtFilePath)
+        _dumpFormat(bconf.PropertyDict, self.cleanFmtFilePath)
 
     def __check(self, cols):
-        if len(cols) < conf.PropertyDict.COL_CNT:
+        if len(cols) < bconf.PropertyDict.COL_CNT:
             return False
-        C = conf.PropertyDict.Column
+        C = bconf.PropertyDict.Column
         if not (30 <= len(cols[C.CALLING.value]) <= 32 and cols[C.CALLING.value] not in self.cleanCallings):
             return False
-        if not (cols[C.PLAN_NAME.value] in conf.PropertyDict.PLAN_NAME_DICT):
+        if not (cols[C.PLAN_NAME.value] in bconf.PropertyDict.PLAN_NAME_DICT):
             return False
-        if not (cols[C.USER_TYPE.value] in conf.PropertyDict.USER_TYPE_DICT):
+        if not (cols[C.USER_TYPE.value] in bconf.PropertyDict.USER_TYPE_DICT):
             return False
         if not (self.__checkOpenDate(cols[C.OPEN_DATE.value])):
             return False
@@ -131,7 +141,7 @@ class PropertyCleaner(Moduler):
             return False
         if not (cols[C.IS_REAL_NAME.value] == "1"):
             return False
-        if not (cols[C.SELL_PRODUCT.value] in conf.PropertyDict.SELL_PRODUCT_DICT):
+        if not (cols[C.SELL_PRODUCT.value] in bconf.PropertyDict.SELL_PRODUCT_DICT):
             return False
         return True
 
@@ -164,22 +174,22 @@ class CdrCleaner(Moduler):
         self.__dumpFormat()
         self.stat = _CdrStat()
 
-        inputFilePaths = glob.glob(os.path.join(self.inputDir, "*.%s" % conf.DATA_FILE_SUFFIX))
+        inputFilePaths = glob.glob(os.path.join(self.inputDir, "*.%s" % bconf.DATA_FILE_SUFFIX))
         for inputFilePath in inputFilePaths:
             cleanLines = []
             dirtyLines = []
             with open(inputFilePath, "r") as rfile:
                 for line in rfile:
-                    cols = map(lambda col: col.strip(), line.strip().split(conf.CdrDict.SEPERATOR))
+                    cols = map(lambda col: col.strip(), line.strip().split(bconf.CdrDict.SEPERATOR))
                     isClean = self.__check(cols)
                     if isClean:
                         usefulCols = []
                         for colNo in range(len(cols)):
-                            if colNo in conf.CdrDict.USEFUL_COLS:
+                            if colNo in bconf.CdrDict.USEFUL_COLS:
                                 usefulCols.append(cols[colNo])
                         cleanLines.append(conf.COL_SEPERATOR.join(usefulCols))
                         self.stat.cleanCdrCnt += 1
-                        date = cols[conf.CdrDict.Column.START_TIME.value][:8]
+                        date = cols[bconf.CdrDict.Column.START_TIME.value][:8]
                         if date not in self.stat.cleanCdrCntByDate:
                             self.stat.cleanCdrCntByDate[date] = 0
                         self.stat.cleanCdrCntByDate[date] += 1
@@ -199,14 +209,14 @@ class CdrCleaner(Moduler):
         logging.debug("%s stat: %s" % (self.name, self.stat,))
 
     def __dumpFormat(self):
-        _dumpFormat(conf.CdrDict, self.cleanFmtFilePath)
+        _dumpFormat(bconf.CdrDict, self.cleanFmtFilePath)
 
     # TODO(20180701) check duplicate cdr
     def __check(self, cols):
-        if len(cols) < conf.CdrDict.COL_CNT:
+        if len(cols) < bconf.CdrDict.COL_CNT:
             return False
         # REFACTOR(20180701) load format
-        C = conf.CdrDict.Column
+        C = bconf.CdrDict.Column
         if not (30 <= len(cols[C.CALLING.value]) <= 32 and cols[C.CALLING.value] in self.cleanCallings):
             return False
         if not (30 <= len(cols[C.CALLED.value]) <= 32):
@@ -219,11 +229,11 @@ class CdrCleaner(Moduler):
             return False
         if not (self.__isNonNegativeInt(cols[C.COST.value])):
             return False
-        if not (cols[C.CDR_TYPE.value] in conf.CdrDict.CDR_TYPE_DICT):
+        if not (cols[C.CDR_TYPE.value] in bconf.CdrDict.CDR_TYPE_DICT):
             return False
         if not (cols[C.CALL_TYPE.value] == "1"):
             return False
-        if not (cols[C.TALK_TYPE.value] in conf.CdrDict.TALK_TYPE_DICT):
+        if not (cols[C.TALK_TYPE.value] in bconf.CdrDict.TALK_TYPE_DICT):
             return False
         if not (cols[C.CALLING_AREA.value] == "021"):
             return False

@@ -10,7 +10,6 @@ from base_conf import mode as MODE, PROJECT_DIR, wkdir as WKDIR
 RESOURCE_DIR = os.path.join(PROJECT_DIR, "resource", MODE.name)
 CDR_DIR = os.path.join(RESOURCE_DIR, "cdr")
 PROPERTY_DIR = os.path.join(RESOURCE_DIR, "property")
-DATA_FILE_SUFFIX = "data.txt"
 
 # middle-state data path
 # cleaner
@@ -25,15 +24,22 @@ TRANSLATE_PPT_DIR = os.path.join(WKDIR, "translate", "property")
 AGGREGATE_CDR_DIR = os.path.join(WKDIR, "aggregate")
 # feature frame 3d constructor
 FEATURE_FRAME_3D_DIR = os.path.join(WKDIR, "featureFrame3d")
+# target behavior constructor
+TARGET_BEHAVIOR_DIR = os.path.join(WKDIR, "targetBehavior")
+
+# special file/dir suffix
+DATA_FILE_SUFFIX = "data.txt"
+FORMAT_FILE_SUFFIX = "format.json"
+KEY_DIR_SUFFIX = "calling"
+DIR_BY_DATE_SUFFIX = "date"
 
 # special file name
-FORMAT_FILE_SUFFIX = "format.json"
 CLEAN_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
 CLEAN_PPT_FORMAT_FILE = "__property.%s" % FORMAT_FILE_SUFFIX
 TL_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
 TL_PPT_FORMAT_FILE = "__property.%s" % FORMAT_FILE_SUFFIX
 AGG_CDR_FORMAT_FILE = "__cdr.%s" % FORMAT_FILE_SUFFIX
-FEATURE_FRAME_FORMAT_FILE = "__ff.%s" % FORMAT_FILE_SUFFIX
+SHUFFLE_FORMAT_FILE = "__shuffle.%s" % FORMAT_FILE_SUFFIX
 FF_FIRST_ROW_FORMAT_FILE = "__ffFirstRow.%s" % FORMAT_FILE_SUFFIX
 
 

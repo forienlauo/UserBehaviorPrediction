@@ -1,16 +1,21 @@
 # coding=utf-8
+
 from src.moduler.constructor.feature_frame_con import FeatureFrame3dConstructor
+from src.moduler.constructor.target_behavior_con import TargetBehaviorConstructor
 from src.moduler.preprocessor.aggregator import CdrAggregator
 from src.moduler.preprocessor.cleaner import Cleaner
 from src.moduler.preprocessor.translator import Translator
 
 
 class Driver(object):
-    def __init__(self):
+    def __init__(self, overwrite=False, ):
         super(Driver, self).__init__()
+        self.overwrite = overwrite
 
     def run(self):
         import conf
+        # OPT(20180705) pre-map cdr by uid(load balance), and process with multi processes parallel(so easy)
+        # REFACTOR(20180705) extract prepare modulers
         Cleaner(
             cdrDir=conf.CDR_DIR, propertyDir=conf.PROPERTY_DIR,
             cleanCdrDir=conf.CLEAN_CDR_DIR, cleanPropertyDir=conf.CLEAN_PPT_DIR,
@@ -33,7 +38,10 @@ class Driver(object):
             aggregateTimeUnit=conf.AggregateTimeUnit.HOUR_1,
             translatePropertyDir=conf.TRANSLATE_PPT_DIR, tlPptFmtFileName=conf.TL_PPT_FORMAT_FILE,
             featureFrame3dDir=conf.FEATURE_FRAME_3D_DIR,
-            ffFmtFileName=conf.FEATURE_FRAME_FORMAT_FILE, ffFirstRowFmtFileName=conf.FF_FIRST_ROW_FORMAT_FILE,
+            shuffleFmtFileName=conf.SHUFFLE_FORMAT_FILE, ffFirstRowFmtFileName=conf.FF_FIRST_ROW_FORMAT_FILE,
         ).run()
-        # TODO(20180703) impl TargetBehaviorConstructor
+        TargetBehaviorConstructor(
+            featureFrame3dDir=conf.FEATURE_FRAME_3D_DIR, ffFirstRowFmtFileName=conf.FF_FIRST_ROW_FORMAT_FILE,
+            targetBehaviorDir=conf.TARGET_BEHAVIOR_DIR,
+        ).run()
         # TODO(20180701) impl others

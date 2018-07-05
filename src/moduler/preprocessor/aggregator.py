@@ -58,80 +58,80 @@ class CdrAggregator(Moduler):
 
         self.stat = _CdrStat()
 
-        noAggMapDirBy_uid = os.path.join(self.aggCdrTmpDir, "noAggregateBy_uid")
-        os.mkdir(noAggMapDirBy_uid)
-        self.__mapBy_uid(self.translateCdrDir, noAggMapDirBy_uid)
+        noAggMapDirBy_calling = os.path.join(self.aggCdrTmpDir, "noAggregateBy_calling")
+        os.mkdir(noAggMapDirBy_calling)
+        self.__mapBy_calling(self.translateCdrDir, noAggMapDirBy_calling)
 
-        noAggMapDirBy_uid_startTime = os.path.join(self.aggCdrTmpDir, "noAggMapBy_uid_startTime")
-        os.mkdir(noAggMapDirBy_uid_startTime)
-        self.__mapBy_uid_startTime(noAggMapDirBy_uid, noAggMapDirBy_uid_startTime)
+        noAggMapDirBy_calling_startTime = os.path.join(self.aggCdrTmpDir, "noAggMapBy_calling_startTime")
+        os.mkdir(noAggMapDirBy_calling_startTime)
+        self.__mapBy_calling_startTime(noAggMapDirBy_calling, noAggMapDirBy_calling_startTime)
 
-        aggRedDirBy_uid_startTime = os.path.join(self.aggCdrTmpDir, self.aggregateTimeUnit.name)
-        os.mkdir(aggRedDirBy_uid_startTime)
-        self.__reduceBy_uid_startTime(noAggMapDirBy_uid_startTime, aggRedDirBy_uid_startTime)
+        aggRedDirBy_calling_startTime = os.path.join(self.aggCdrTmpDir, self.aggregateTimeUnit.name)
+        os.mkdir(aggRedDirBy_calling_startTime)
+        self.__reduceBy_calling_startTime(noAggMapDirBy_calling_startTime, aggRedDirBy_calling_startTime)
         logging.debug("dump aggregate format: %s" % self.aggCdrFmtFilePath)
         dumpFormatDict(self.__aggCdrFmtDict, self.aggCdrFmtFilePath)
 
-        logging.debug("move no aggregate map dir: %s" % noAggMapDirBy_uid)
-        logging.debug("move aggregate reduce dir: %s" % aggRedDirBy_uid_startTime)
-        os.rename(noAggMapDirBy_uid, os.path.join(self.aggregateCdrDir, os.path.basename(noAggMapDirBy_uid)))
-        os.rename(aggRedDirBy_uid_startTime,
-                  os.path.join(self.aggregateCdrDir, os.path.basename(aggRedDirBy_uid_startTime)))
+        logging.debug("move no aggregate map dir: %s" % noAggMapDirBy_calling)
+        logging.debug("move aggregate reduce dir: %s" % aggRedDirBy_calling_startTime)
+        os.rename(noAggMapDirBy_calling, os.path.join(self.aggregateCdrDir, os.path.basename(noAggMapDirBy_calling)))
+        os.rename(aggRedDirBy_calling_startTime,
+                  os.path.join(self.aggregateCdrDir, os.path.basename(aggRedDirBy_calling_startTime)))
 
         logging.debug("%s stat: %s" % (self.name, self.stat,))
 
-    def __mapBy_uid(self, translateCdrDir, noAggMapDir_uid):
+    def __mapBy_calling(self, translateCdrDir, noAggMapDir_calling):
         tlFmtDict = self.__tlCdrFmtDict
 
-        inputFilePaths = glob.glob(os.path.join(translateCdrDir, "*.%s" % conf.DATA_FILE_SUFFIX))
-        for inputFilePath in inputFilePaths:
-            mappedLinesByKey = dict()
-            with open(inputFilePath, "r") as rfile:
-                for line in rfile:
-                    cols = map(lambda col: col.strip(), line.strip().split(conf.COL_SEPERATOR))
-                    key = cols[tlFmtDict["CALLING"]]
-                    if key not in mappedLinesByKey:
-                        mappedLinesByKey[key] = list()
-                    mappedLinesByKey[key].append(line)
-            for key in mappedLinesByKey:
-                mappedLines = mappedLinesByKey[key]
+        tlCdrFilePaths = glob.glob(os.path.join(translateCdrDir, "*.%s" % conf.DATA_FILE_SUFFIX))
+        for tlCdrFilePath in tlCdrFilePaths:
+            mappedLinesBy_calling = dict()
+            with open(tlCdrFilePath, "r") as rFile:
+                for tlCdrLine in rFile:
+                    cols = map(lambda col: col.strip(), tlCdrLine.strip().split(conf.COL_SEPERATOR))
+                    calling = cols[tlFmtDict["CALLING"]]
+                    if calling not in mappedLinesBy_calling:
+                        mappedLinesBy_calling[calling] = list()
+                    mappedLinesBy_calling[calling].append(tlCdrLine)
+            for calling in mappedLinesBy_calling:
+                mappedLines = mappedLinesBy_calling[calling]
                 # OPT(20180702) decre io cost
-                mappedFilePath = os.path.join(noAggMapDir_uid, "%s.%s" % (key, conf.DATA_FILE_SUFFIX,))
+                mappedFilePath = os.path.join(noAggMapDir_calling, "%s.%s" % (calling, conf.DATA_FILE_SUFFIX,))
                 with open(mappedFilePath, "a") as wfile:
                     wfile.write("".join(mappedLines))
 
-    def __mapBy_uid_startTime(self, noAggMapDirBy_uid, noAggMapDirBy_uid_startTime):
+    def __mapBy_calling_startTime(self, noAggMapDirBy_calling, noAggMapDirBy_calling_startTime):
         tlFmtDict = self.__tlCdrFmtDict
 
-        inputFilePaths = glob.glob(os.path.join(noAggMapDirBy_uid, "*.%s" % conf.DATA_FILE_SUFFIX))
-        for inputFilePath in inputFilePaths:
+        noAggMapFilePathsBy_calling = glob.glob(os.path.join(noAggMapDirBy_calling, "*.%s" % conf.DATA_FILE_SUFFIX))
+        for noAggMapFilePathBy_calling in noAggMapFilePathsBy_calling:
             mappedLinesByKey = dict()
-            uid = None
-            with open(inputFilePath, "r") as rfile:
+            calling = None
+            with open(noAggMapFilePathBy_calling, "r") as rfile:
                 for line in rfile:
                     cols = map(lambda col: col.strip(), line.strip().split(conf.COL_SEPERATOR))
-                    if uid is None:
-                        uid = cols[tlFmtDict["CALLING"]]
-                    assert uid == cols[tlFmtDict["CALLING"]]
-                    key = self.__simplifyStartTime(cols[tlFmtDict["START_TIME"]])
-                    if key not in mappedLinesByKey:
-                        mappedLinesByKey[key] = list()
-                    mappedLinesByKey[key].append(line)
-            mappedDir = os.path.join(noAggMapDirBy_uid_startTime, uid)
+                    if calling is None:
+                        calling = cols[tlFmtDict["CALLING"]]
+                    assert calling == cols[tlFmtDict["CALLING"]]
+                    startTime = self.__simplifyStartTime(cols[tlFmtDict["START_TIME"]])
+                    if startTime not in mappedLinesByKey:
+                        mappedLinesByKey[startTime] = list()
+                    mappedLinesByKey[startTime].append(line)
+            mappedDir = os.path.join(noAggMapDirBy_calling_startTime, "%s.%s" % (calling, conf.KEY_DIR_SUFFIX))
             os.mkdir(mappedDir)
-            for key in mappedLinesByKey:
-                mappedLines = mappedLinesByKey[key]
+            for startTime in mappedLinesByKey:
+                mappedLines = mappedLinesByKey[startTime]
                 # OPT(20180702) decre io cost
-                mappedFilePath = os.path.join(mappedDir, "%s.%s" % (key, conf.DATA_FILE_SUFFIX,))
+                mappedFilePath = os.path.join(mappedDir, "%s.%s" % (startTime, conf.DATA_FILE_SUFFIX,))
                 with open(mappedFilePath, "w") as wfile:
                     wfile.write("".join(mappedLines))
             self.stat.callingUCnt += 1
             self.stat.calling_startTimeUCnt += len(mappedLinesByKey)
 
-    def __reduceBy_uid_startTime(self, noAggMapDirBy_uid_startTime, aggRedDirBy_uid_startTime):
-        mappedDirsBy_Uid = glob.glob(os.path.join(noAggMapDirBy_uid_startTime, "*"))
+    def __reduceBy_calling_startTime(self, noAggMapDirBy_calling_startTime, aggRedDirBy_calling_startTime):
+        mappedDirsBy_Uid = glob.glob(os.path.join(noAggMapDirBy_calling_startTime, "*.%s" % conf.KEY_DIR_SUFFIX))
         for mappedDirBy_Uid in mappedDirsBy_Uid:
-            uid = os.path.basename(mappedDirBy_Uid)
+            calling = os.path.basename(mappedDirBy_Uid).rstrip(".%s" % conf.KEY_DIR_SUFFIX)
             inputFilePaths = glob.glob(os.path.join(mappedDirBy_Uid, "*.%s" % conf.DATA_FILE_SUFFIX))
             aggLines = list()
             for inputFilePath in inputFilePaths:
@@ -139,14 +139,14 @@ class CdrAggregator(Moduler):
                     startTime = os.path.basename(inputFilePath).rstrip(".%s" % conf.DATA_FILE_SUFFIX)
                     noAggRows = map(lambda _: _.split(conf.COL_SEPERATOR),
                                     rfile.read(-1).strip().split(conf.ROW_SEPERATOR))
-                    aggRow = self.__aggregate(uid, startTime, noAggRows)
+                    aggRow = self.__aggregate(calling, startTime, noAggRows)
                     self.stat.updateCallCnt(float(aggRow[self.__aggCdrFmtDict["CALL_CNT"]]))
                     aggLines.append(conf.COL_SEPERATOR.join(aggRow))
-            reducedFilePath = os.path.join(aggRedDirBy_uid_startTime, "%s.%s" % (uid, conf.DATA_FILE_SUFFIX,))
+            reducedFilePath = os.path.join(aggRedDirBy_calling_startTime, "%s.%s" % (calling, conf.DATA_FILE_SUFFIX,))
             with open(reducedFilePath, "w") as wfile:
                 wfile.write(conf.ROW_SEPERATOR.join(aggLines))
 
-    def __aggregate(self, uid, startTime, noAggRows):
+    def __aggregate(self, calling, startTime, noAggRows):
         tlFmtDict = self.__tlCdrFmtDict
         aggFeatures = [
             # key
@@ -188,7 +188,7 @@ class CdrAggregator(Moduler):
         noAggDf[tlFmtDict["COST"]] = map(int, noAggDf[tlFmtDict["COST"]])
 
         # key
-        aggRow[aggFmtDict["CALLING"]] = uid
+        aggRow[aggFmtDict["CALLING"]] = calling
         aggRow[aggFmtDict["START_TIME"]] = startTime
 
         # value

@@ -19,7 +19,7 @@ class FeatureFrame3dConstructor(Moduler):
             aggregateCdrDir=None, aggCdrFmtFileName=None,
             aggregateTimeUnit=None,
             translatePropertyDir=None, tlPptFmtFileName=None,
-            featureFrame3dDir=None, ffFmtFileName=None, ffFirstRowFmtFileName=None,
+            featureFrame3dDir=None, shuffleFmtFileName=None, ffFirstRowFmtFileName=None,
     ):
         super(FeatureFrame3dConstructor, self).__init__()
         self.aggregateCdrDir = aggregateCdrDir
@@ -29,13 +29,12 @@ class FeatureFrame3dConstructor(Moduler):
         self.tlPptFmtFilePath = os.path.join(self.translatePropertyDir, tlPptFmtFileName)
         self.featureFrame3dDir = featureFrame3dDir
         self.ff3TmpDir = os.path.join(self.featureFrame3dDir, ".tmp")
-        self.ffFmtFilePath = os.path.join(self.featureFrame3dDir, ffFmtFileName)
+        self.shuffleFmtFilePath = os.path.join(self.featureFrame3dDir, shuffleFmtFileName)
         self.ffFirstRowFmtFilePath = os.path.join(self.featureFrame3dDir, ffFirstRowFmtFileName)
         self.stat = None
         self.__aggCdrFmtDict = None
         self.__tlPptFmtDict = None
         self.__ffFirstRowFmtDict = None
-        self.__ffFmtDict = None
         self.__shuffleFmt = None
         self.__sharedZeroFfAsLine = None
 
@@ -73,15 +72,15 @@ class FeatureFrame3dConstructor(Moduler):
         joinDir = os.path.join(self.ff3TmpDir, "join")
         os.mkdir(joinDir)
         self.__joinAggCdrAndPpt(self.aggregateCdrDir, self.aggregateTimeUnit, self.translatePropertyDir, joinDir)
-        logging.debug("dump FeatureFrame first row format: %s" % self.ffFirstRowFmtFilePath)
+        logging.debug("dump first row format of FeatureFrame: %s" % self.ffFirstRowFmtFilePath)
         dumpFormatDict(self.__ffFirstRowFmtDict, self.ffFirstRowFmtFilePath)
 
         # TODO(20180703) copy && shuffle
         featureFrameDir = os.path.join(self.ff3TmpDir, "featureFrame")
         os.mkdir(featureFrameDir)
         self.__copyAndShuffle(joinDir, featureFrameDir)
-        logging.debug("dump FeatureFrame format: %s" % self.ffFmtFilePath)
-        dumpFormatDict(self.__ffFmtDict, self.ffFmtFilePath)
+        logging.debug("dump shuffle format of FeatureFrame: %s" % self.shuffleFmtFilePath)
+        dumpFormatDict(self.__shuffleFmt, self.shuffleFmtFilePath)
 
         # TODO(20180703) construct
         constructDir = os.path.join(self.ff3TmpDir, "construct")
@@ -99,7 +98,7 @@ class FeatureFrame3dConstructor(Moduler):
     def __joinAggCdrAndPpt(self, aggregateCdrDir, aggregateTimeUnit, translatePropertyDir, joinDir):
         aggCdrFmtDict = self.__aggCdrFmtDict
         tlPptFmtDict = self.__tlPptFmtDict
-        # FIXME(20180705) cannot use 0 as nan value for CDR_TYPE_MODE, TALK_TYPE_MODE, PLAN_NAME, USER_TYPE and SELL_PRODUCT
+        # FIXME(20180705) cannot use 0 as nan-value for CDR_TYPE_MODE, TALK_TYPE_MODE, PLAN_NAME, USER_TYPE and SELL_PRODUCT
         ffFirstRowFeatures = [
             # cdr value
             "CALL_CNT",
@@ -160,11 +159,10 @@ class FeatureFrame3dConstructor(Moduler):
                                 # joinLinesBy_hour = joinDictBy_date[date]
                             assert hour not in joinDictBy_date[date]
                             joinDictBy_date[date][hour] = conf.COL_SEPERATOR.join(joinCols)
-                    joinDirBy_calling = os.path.join(joinDir, calling)
+                    joinDirBy_calling = os.path.join(joinDir, "%s.%s" % (calling, conf.KEY_DIR_SUFFIX))
                     os.mkdir(joinDirBy_calling)
                     for date in joinDictBy_date:
-                        joinFilePathBy_date = os.path.join(
-                            joinDirBy_calling, "%s.%s" % (date, conf.DATA_FILE_SUFFIX))
+                        joinFilePathBy_date = os.path.join(joinDirBy_calling, "%s.%s" % (date, conf.DATA_FILE_SUFFIX))
                         joinLinesBy_hour = joinDictBy_date[date]
                         with open(joinFilePathBy_date, "w") as wJoinFile:
                             sortedHours = sorted(joinLinesBy_hour.keys())
@@ -185,10 +183,10 @@ class FeatureFrame3dConstructor(Moduler):
         self.__initShuffleFmt()
         shuffleFmt = self.__shuffleFmt
 
-        joinDirsBy_calling = glob.glob(os.path.join(joinDir, "*"))
+        joinDirsBy_calling = glob.glob(os.path.join(joinDir, "*.%s" % conf.KEY_DIR_SUFFIX))
         for joinDirBy_calling in joinDirsBy_calling:
-            calling = os.path.basename(joinDirBy_calling)
-            ffDirBy_calling = os.path.join(featureFrameDir, calling)
+            calling = os.path.basename(joinDirBy_calling).rstrip(".%s" % conf.KEY_DIR_SUFFIX)
+            ffDirBy_calling = os.path.join(featureFrameDir, "%s.%s" % (calling, conf.KEY_DIR_SUFFIX))
             os.mkdir(ffDirBy_calling)
             joinFilePathsBy_date = glob.glob(os.path.join(joinDirBy_calling, "*.%s" % conf.DATA_FILE_SUFFIX))
             for joinFilePathBy_date in joinFilePathsBy_date:
@@ -224,10 +222,10 @@ class FeatureFrame3dConstructor(Moduler):
     def __constructFeatureFrame3d(self, featureFrameDir, constructDir):
         self.__initSharedZeroFfAsLine()
 
-        ffDirsBy_calling = glob.glob(os.path.join(featureFrameDir, "*"))
+        ffDirsBy_calling = glob.glob(os.path.join(featureFrameDir, "*.%s" % conf.KEY_DIR_SUFFIX))
         for ffDirBy_calling in ffDirsBy_calling:
-            calling = os.path.basename(ffDirBy_calling)
-            csDirBy_calling = os.path.join(constructDir, calling)
+            calling = os.path.basename(ffDirBy_calling).rstrip(".%s" % conf.KEY_DIR_SUFFIX)
+            csDirBy_calling = os.path.join(constructDir, "%s.%s" % (calling, conf.KEY_DIR_SUFFIX))
             os.mkdir(csDirBy_calling)
             ffFilePathsBy_date = glob.glob(os.path.join(ffDirBy_calling, "*.%s" % conf.DATA_FILE_SUFFIX))
             for ffFilePathBy_date in ffFilePathsBy_date:
@@ -242,6 +240,7 @@ class FeatureFrame3dConstructor(Moduler):
                         csFf3dAsMLinesBy_hour[sortedHours[hourNo]] = ffLine.strip()
                         hourNo += 1
                     self.stat.zeroFfCnt += 24 - len(sortedHours)
+                # OPT(20180705) compress files cnt if needed
                 csFilePathBy_date = os.path.join(csDirBy_calling, "%s.%s" % (date, conf.DATA_FILE_SUFFIX))
                 with open(csFilePathBy_date, "w") as wFile:
                     wFile.write(conf.ROW_SEPERATOR.join(csFf3dAsMLinesBy_hour))

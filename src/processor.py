@@ -1,6 +1,7 @@
 # coding=utf-8
 import logging
 
+import base_conf as bconf
 from src.moduler.constructor.feature_frame_con import FeatureFrame3dConstructor
 from src.moduler.constructor.target_behavior_con import TargetBehaviorConstructor
 from src.moduler.preprocessor.aggregator import CdrAggregator
@@ -16,7 +17,6 @@ class Processor(object):
 
     def run(self):
         import conf
-        # REFACTOR(20180705) extract prepare modulers
         cleaner = Cleaner(
             cdrDir=self.cdrDir, propertyDir=self.propertyDir,
             cleanCdrDir=conf.CLEAN_CDR_DIR, cleanPropertyDir=conf.CLEAN_PPT_DIR,
@@ -36,14 +36,16 @@ class Processor(object):
         CdrAggregator(
             translateCdrDir=conf.TRANSLATE_CDR_DIR, tlCdrFmtFileName=conf.TL_CDR_FORMAT_FILE,
             aggregateCdrDir=conf.AGGREGATE_CDR_DIR, aggCdrFmtFileName=conf.AGG_CDR_FORMAT_FILE,
-            aggregateTimeUnit=conf.AggregateTimeUnit.HOUR_1,
+            aggregateTimeUnit=bconf.AGGREGATE_TIME_UNIT,
         ).run()
         FeatureFrame3dConstructor(
             aggregateCdrDir=conf.AGGREGATE_CDR_DIR, aggCdrFmtFileName=conf.AGG_CDR_FORMAT_FILE,
-            aggregateTimeUnit=conf.AggregateTimeUnit.HOUR_1,
+            aggregateTimeUnit=bconf.AggregateTimeUnit.HOUR_1,
             translatePropertyDir=conf.TRANSLATE_PPT_DIR, tlPptFmtFileName=conf.TL_PPT_FORMAT_FILE,
             featureFrame3dDir=conf.FEATURE_FRAME_3D_DIR,
             shuffleFmtFileName=conf.SHUFFLE_FORMAT_FILE, ffFirstRowFmtFileName=conf.FF_FIRST_ROW_FORMAT_FILE,
+            ffFirstRowFeatures=bconf.FeatureFrame3dDict.FIRST_ROW_FEATURES,
+            ffFirstRowFmt=bconf.FeatureFrame3dDict.FIRST_ROW_FMT, shuffleFmt=bconf.FeatureFrame3dDict.SHUFFLE_FMT,
         ).run()
         TargetBehaviorConstructor(
             featureFrame3dDir=conf.FEATURE_FRAME_3D_DIR, ffFirstRowFmtFileName=conf.FF_FIRST_ROW_FORMAT_FILE,

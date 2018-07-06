@@ -1,6 +1,7 @@
 # coding=utf-8
 import logging
 import os
+import random
 import time
 
 from enum import Enum
@@ -157,3 +158,86 @@ class PropertyDict(object):
         "2011我的e家e6-3G套餐56元/月": 224,
         "2013我的e家e6-3G套餐56元/月": 231,
     }
+
+
+COL_SEPERATOR = "\t"
+ROW_SEPERATOR = "\n"
+
+
+class AggregateTimeUnit(Enum):
+    (
+        HOUR_6,
+        HOUR_1,
+        MIN_10,
+    ) = range(3)
+
+
+AGGREGATE_TIME_UNIT = AggregateTimeUnit.HOUR_1
+
+
+class FeatureFrame3dDict(object):
+    # FIXME(20180705) cannot use 0 as nan-value for CDR_TYPE_MODE, TALK_TYPE_MODE, PLAN_NAME, USER_TYPE and SELL_PRODUCT
+    FIRST_ROW_FEATURES = [
+        # cdr value
+        "CALL_CNT",
+        "CALLED_UCNT",  # prefix "u" means unique
+        "CALLED_MCNT",  # prefix "m" means mode
+        "CALL_TIME_UCNT",
+        "CALL_TIME_MEAN",
+        "CALL_TIME_MODE",
+        "CALL_TIME_MCNT",
+        "CALL_TIME_STD",
+        "COST_UCNT",
+        "COST_MEAN",
+        "COST_MODE",
+        "COST_MCNT",
+        "COST_STD",
+        "CDR_TYPE_UCNT",
+        "CDR_TYPE_MODE",
+        "CDR_TYPE_MCNT",
+        "TALK_TYPE_UCNT",
+        "TALK_TYPE_MODE",
+        "TALK_TYPE_MCNT",
+        "CALLED_AREA_UCNT",
+        "CALLED_AREA_MCNT",
+        # property value
+        "PLAN_NAME",
+        "USER_TYPE",
+        "SELL_PRODUCT",
+    ]
+
+    # TODO(20180703) accurate calculate COPY_CNT judging by p
+    COPY_CNT = 10
+
+    FIRST_ROW_FMT = None
+    SHUFFLE_FMT = None
+
+    @staticmethod
+    def init():
+        FeatureFrame3dDict.__initFirstRowFmt()
+        FeatureFrame3dDict.__initShuffleFmt()
+
+    @staticmethod
+    def __initFirstRowFmt():
+        if FeatureFrame3dDict.FIRST_ROW_FMT is not None:
+            return
+
+        firstRowFeatures = FeatureFrame3dDict.FIRST_ROW_FEATURES
+        assert len(set(firstRowFeatures)) == len(firstRowFeatures)
+        # REFACTOR(20180706) extract aggCdrFmtDict as here
+        # assert set(firstRowFeatures) < (set(aggCdrFmtDict) | set(tlPptFmtDict))
+        FeatureFrame3dDict.FIRST_ROW_FMT = dict(zip(firstRowFeatures, range(len(firstRowFeatures))))
+
+    @staticmethod
+    def __initShuffleFmt():
+        if FeatureFrame3dDict.SHUFFLE_FMT is not None:
+            return
+
+        shuffleFmt = range(FeatureFrame3dDict.COPY_CNT)
+        firstRowOrder = range(len(FeatureFrame3dDict.FIRST_ROW_FMT))
+        shuffleFmt[0] = firstRowOrder
+        tmpRowOrder = list(firstRowOrder)
+        for rowNo in range(1, FeatureFrame3dDict.COPY_CNT):
+            random.shuffle(tmpRowOrder)
+            shuffleFmt[rowNo] = list(tmpRowOrder)
+        FeatureFrame3dDict.SHUFFLE_FMT = shuffleFmt

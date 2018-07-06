@@ -6,7 +6,6 @@ import logging
 import os
 
 import base_conf as bconf
-import conf
 from src.moduler.moduler import Moduler, Stat
 
 
@@ -102,20 +101,20 @@ class PropertyCleaner(Moduler):
                         for colNo in range(len(cols)):
                             if colNo in bconf.PropertyDict.USEFUL_COLS:
                                 usefulCols.append(cols[colNo])
-                        cleanLines.append(conf.COL_SEPERATOR.join(usefulCols))
+                        cleanLines.append(bconf.COL_SEPERATOR.join(usefulCols))
                         self.stat.cleanPropertyCnt += 1
                     else:
-                        dirtyLines.append(conf.COL_SEPERATOR.join(cols))
+                        dirtyLines.append(bconf.COL_SEPERATOR.join(cols))
                         self.stat.dirtyPropertyCnt += 1
             # TODO(20180701) re-filter by cleanLineCntThresh
             if len(cleanLines) > 0:
                 cleanFilePath = os.path.join(self.cleanDir, os.path.basename(inputFilePath))
                 with open(cleanFilePath, "w") as wfile:
-                    wfile.write(conf.ROW_SEPERATOR.join(cleanLines))
+                    wfile.write(bconf.ROW_SEPERATOR.join(cleanLines))
             if len(dirtyLines) > 0:
                 dirtyFilePath = os.path.join(self.dirtyDir, os.path.basename(inputFilePath))
                 with open(dirtyFilePath, "w") as wfile:
-                    wfile.write(conf.ROW_SEPERATOR.join(dirtyLines))
+                    wfile.write(bconf.ROW_SEPERATOR.join(dirtyLines))
 
         logging.debug("%s stat: %s" % (self.name, self.stat,))
 
@@ -187,24 +186,24 @@ class CdrCleaner(Moduler):
                         for colNo in range(len(cols)):
                             if colNo in bconf.CdrDict.USEFUL_COLS:
                                 usefulCols.append(cols[colNo])
-                        cleanLines.append(conf.COL_SEPERATOR.join(usefulCols))
+                        cleanLines.append(bconf.COL_SEPERATOR.join(usefulCols))
                         self.stat.cleanCdrCnt += 1
                         date = cols[bconf.CdrDict.Column.START_TIME.value][:8]
                         if date not in self.stat.cleanCdrCntByDate:
                             self.stat.cleanCdrCntByDate[date] = 0
                         self.stat.cleanCdrCntByDate[date] += 1
                     else:
-                        dirtyLines.append(conf.COL_SEPERATOR.join(cols))
+                        dirtyLines.append(bconf.COL_SEPERATOR.join(cols))
                         self.stat.dirtyCdrCnt += 1
             # TODO(20180701) re-filter by cleanLineCntThresh
             if len(cleanLines) > 0:
                 cleanFilePath = os.path.join(self.cleanDir, os.path.basename(inputFilePath))
                 with open(cleanFilePath, "w") as wfile:
-                    wfile.write(conf.ROW_SEPERATOR.join(cleanLines))
+                    wfile.write(bconf.ROW_SEPERATOR.join(cleanLines))
             if len(dirtyLines) > 0:
                 dirtyFilePath = os.path.join(self.dirtyDir, os.path.basename(inputFilePath))
                 with open(dirtyFilePath, "w") as wfile:
-                    wfile.write(conf.ROW_SEPERATOR.join(dirtyLines))
+                    wfile.write(bconf.ROW_SEPERATOR.join(dirtyLines))
 
         logging.debug("%s stat: %s" % (self.name, self.stat,))
 

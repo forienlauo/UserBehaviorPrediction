@@ -4,7 +4,6 @@ import logging
 import os
 
 import base_conf as bconf
-import conf
 from src.common.util import loadFormatDict
 from src.moduler.moduler import Moduler
 
@@ -47,7 +46,7 @@ class TargetBehaviorConstructor(Moduler):
                 with open(ff3dFilePathBy_date, "r") as rFf3dFile:
                     hour = 0
                     for ffLine in rFf3dFile:
-                        ffAsRow = ffLine.strip().split(conf.COL_SEPERATOR)
+                        ffAsRow = ffLine.strip().split(bconf.COL_SEPERATOR)
                         ffFirstRow = ffAsRow[:len(self.__ffFirstRowFmtDict)]
                         ffFirstRows[hour] = ffFirstRow
                         hour += 1

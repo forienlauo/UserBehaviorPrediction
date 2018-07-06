@@ -9,7 +9,6 @@ import pandas as pd
 
 import base_conf as bconf
 import conf
-from conf import AggregateTimeUnit
 from src.common.usr_exceptions import NotSupportedError
 from src.common.util import loadFormatDict, dumpFormatDict
 from src.moduler.moduler import Moduler, Stat
@@ -20,16 +19,15 @@ class CdrAggregator(Moduler):
     def __init__(
             self,
             translateCdrDir=None, tlCdrFmtFileName=None,
-            aggregateCdrDir=None, aggCdrFmtFileName=None,
-            aggregateTimeUnit=None,
+            aggregateCdrDir=None, aggregateTimeUnit=None, aggCdrFmtFileName=None,
     ):
         super(CdrAggregator, self).__init__()
         self.translateCdrDir = translateCdrDir
         self.tlCdrFmtFilePath = os.path.join(self.translateCdrDir, tlCdrFmtFileName)
         self.aggregateCdrDir = aggregateCdrDir
-        self.aggCdrFmtFilePath = os.path.join(self.aggregateCdrDir, aggCdrFmtFileName)
-        self.aggCdrTmpDir = os.path.join(self.aggregateCdrDir, ".tmp")
         self.aggregateTimeUnit = aggregateTimeUnit
+        self.aggCdrFmtFileName = aggCdrFmtFileName
+        self.aggCdrTmpDir = os.path.join(self.aggregateCdrDir, ".tmp")
         self.stat = None
         self.__tlCdrFmtDict = None
         self.__aggCdrFmtDict = None
@@ -44,7 +42,7 @@ class CdrAggregator(Moduler):
         self.__clean()
 
     def __init(self):
-        os.makedirs(self.aggregateCdrDir)
+        os.mkdir(self.aggregateCdrDir)
         if os.path.isdir(self.aggCdrTmpDir):
             shutil.rmtree(self.aggCdrTmpDir)
         os.makedirs(self.aggCdrTmpDir)
@@ -68,14 +66,13 @@ class CdrAggregator(Moduler):
         self.__mapBy_calling_startTime(noAggMapDirBy_calling, noAggMapDirBy_calling_startTime)
 
         aggRedDirBy_calling_startTime = os.path.join(self.aggCdrTmpDir, self.aggregateTimeUnit.name)
+        aggCdrFmtFilePath = os.path.join(aggRedDirBy_calling_startTime, self.aggCdrFmtFileName)
         os.mkdir(aggRedDirBy_calling_startTime)
         self.__reduceBy_calling_startTime(noAggMapDirBy_calling_startTime, aggRedDirBy_calling_startTime)
-        logging.debug("dump aggregate format: %s" % self.aggCdrFmtFilePath)
-        dumpFormatDict(self.__aggCdrFmtDict, self.aggCdrFmtFilePath)
+        logging.debug("dump aggregate format: %s" % aggCdrFmtFilePath)
+        dumpFormatDict(self.__aggCdrFmtDict, aggCdrFmtFilePath)
 
-        logging.debug("move no aggregate map dir: %s" % noAggMapDirBy_calling)
         logging.debug("move aggregate reduce dir: %s" % aggRedDirBy_calling_startTime)
-        os.rename(noAggMapDirBy_calling, os.path.join(self.aggregateCdrDir, os.path.basename(noAggMapDirBy_calling)))
         os.rename(aggRedDirBy_calling_startTime,
                   os.path.join(self.aggregateCdrDir, os.path.basename(aggRedDirBy_calling_startTime)))
 
@@ -89,7 +86,7 @@ class CdrAggregator(Moduler):
             mappedLinesBy_calling = dict()
             with open(tlCdrFilePath, "r") as rFile:
                 for tlCdrLine in rFile:
-                    cols = map(lambda col: col.strip(), tlCdrLine.strip().split(conf.COL_SEPERATOR))
+                    cols = map(lambda col: col.strip(), tlCdrLine.strip().split(bconf.COL_SEPERATOR))
                     calling = cols[tlFmtDict["CALLING"]]
                     if calling not in mappedLinesBy_calling:
                         mappedLinesBy_calling[calling] = list()
@@ -98,8 +95,8 @@ class CdrAggregator(Moduler):
                 mappedLines = mappedLinesBy_calling[calling]
                 # OPT(20180702) decre io cost
                 mappedFilePath = os.path.join(noAggMapDir_calling, "%s.%s" % (calling, bconf.DATA_FILE_SUFFIX,))
-                with open(mappedFilePath, "a") as wfile:
-                    wfile.write("".join(mappedLines))
+                with open(mappedFilePath, "a") as afile:
+                    afile.write("".join(mappedLines))
 
     def __mapBy_calling_startTime(self, noAggMapDirBy_calling, noAggMapDirBy_calling_startTime):
         tlFmtDict = self.__tlCdrFmtDict
@@ -110,7 +107,7 @@ class CdrAggregator(Moduler):
             calling = None
             with open(noAggMapFilePathBy_calling, "r") as rfile:
                 for line in rfile:
-                    cols = map(lambda col: col.strip(), line.strip().split(conf.COL_SEPERATOR))
+                    cols = map(lambda col: col.strip(), line.strip().split(bconf.COL_SEPERATOR))
                     if calling is None:
                         calling = cols[tlFmtDict["CALLING"]]
                     assert calling == cols[tlFmtDict["CALLING"]]
@@ -138,15 +135,15 @@ class CdrAggregator(Moduler):
             for inputFilePath in inputFilePaths:
                 with open(inputFilePath, "r") as rfile:
                     startTime = os.path.basename(inputFilePath).rstrip(".%s" % bconf.DATA_FILE_SUFFIX)
-                    noAggRows = map(lambda _: _.split(conf.COL_SEPERATOR),
-                                    rfile.read(-1).strip().split(conf.ROW_SEPERATOR))
+                    noAggRows = map(lambda _: _.split(bconf.COL_SEPERATOR),
+                                    rfile.read(-1).strip().split(bconf.ROW_SEPERATOR))
                     aggRow = self.__aggregate(calling, startTime, noAggRows)
                     self.stat.updateCallCnt(float(aggRow[self.__aggCdrFmtDict["CALL_CNT"]]))
-                    aggLines.append(conf.COL_SEPERATOR.join(aggRow))
+                    aggLines.append(bconf.COL_SEPERATOR.join(aggRow))
             reducedFilePath = os.path.join(aggRedDirBy_calling_startTime, "%s.%s" % (calling,
                                                                                      bconf.DATA_FILE_SUFFIX,))
             with open(reducedFilePath, "w") as wfile:
-                wfile.write(conf.ROW_SEPERATOR.join(aggLines))
+                wfile.write(bconf.ROW_SEPERATOR.join(aggLines))
 
     def __aggregate(self, calling, startTime, noAggRows):
         tlFmtDict = self.__tlCdrFmtDict
@@ -266,23 +263,23 @@ class CdrAggregator(Moduler):
         return map(str, aggRow)
 
     def __simplifyStartTime(self, startTime):
-        if self.aggregateTimeUnit == AggregateTimeUnit.HOUR_6:
+        if self.aggregateTimeUnit == bconf.AggregateTimeUnit.HOUR_6:
             return startTime[:8] + str(int(startTime[8:10]) / 6)
-        if self.aggregateTimeUnit == AggregateTimeUnit.HOUR_1:
+        if self.aggregateTimeUnit == bconf.AggregateTimeUnit.HOUR_1:
             return startTime[:10]
-        elif self.aggregateTimeUnit == AggregateTimeUnit.MIN_10:
+        elif self.aggregateTimeUnit == bconf.AggregateTimeUnit.MIN_10:
             return startTime[:10] + str(int(startTime[10:12]) / 10)
-        elif self.aggregateTimeUnit == AggregateTimeUnit.MIN_1:
+        elif self.aggregateTimeUnit == bconf.AggregateTimeUnit.MIN_1:
             return startTime[:12]
         return
 
     def __translateXCnt(self, xCnt):
         translateXCnt = None
-        if self.aggregateTimeUnit == AggregateTimeUnit.HOUR_6:
+        if self.aggregateTimeUnit == bconf.AggregateTimeUnit.HOUR_6:
             translateXCnt = 255.0 * xCnt / (6 * 60 * 60)
-        elif self.aggregateTimeUnit == AggregateTimeUnit.HOUR_1:
+        elif self.aggregateTimeUnit == bconf.AggregateTimeUnit.HOUR_1:
             translateXCnt = 255.0 * xCnt / (1 * 60 * 60)
-        elif self.aggregateTimeUnit == AggregateTimeUnit.MIN_10:
+        elif self.aggregateTimeUnit == bconf.AggregateTimeUnit.MIN_10:
             translateXCnt = 255.0 * xCnt / (10 * 60)
         else:
             raise NotSupportedError("Not support current AggregateTimeUnit: %s" % self.aggregateTimeUnit.name)

@@ -20,26 +20,30 @@ class FeatureFrame3dConstructor(Moduler):
             aggregateCdrDir=None, aggCdrFmtFileName=None,
             aggregateTimeUnit=None,
             translatePropertyDir=None, tlPptFmtFileName=None,
-            featureFrame3dDir=None, shuffleFmtFileName=None, ffFirstRowFmtFileName=None,
+            featureFrame3dDir=None, ffFirstRowFmtFileName=None, shuffleFmtFileName=None,
+            ffFirstRowFeatures=None, ffFirstRowFmt=None, shuffleFmt=None,
     ):
         super(FeatureFrame3dConstructor, self).__init__()
         self.aggregateCdrDir = aggregateCdrDir
-        self.aggCdrFmtFilePath = os.path.join(self.aggregateCdrDir, aggCdrFmtFileName)
         self.aggregateTimeUnit = aggregateTimeUnit
+        self.aggCdrFmtFilePath = os.path.join(self.aggregateCdrDir, self.aggregateTimeUnit.name, aggCdrFmtFileName)
         self.translatePropertyDir = translatePropertyDir
         self.tlPptFmtFilePath = os.path.join(self.translatePropertyDir, tlPptFmtFileName)
         self.featureFrame3dDir = featureFrame3dDir
         self.ff3TmpDir = os.path.join(self.featureFrame3dDir, ".tmp")
         self.shuffleFmtFilePath = os.path.join(self.featureFrame3dDir, shuffleFmtFileName)
         self.ffFirstRowFmtFilePath = os.path.join(self.featureFrame3dDir, ffFirstRowFmtFileName)
+
+        self.ffFirstRowFeatures = ffFirstRowFeatures
+        self.ffFirstRowFmt = ffFirstRowFmt
+        self.shuffleFmt = shuffleFmt
+
         self.stat = None
         self.__aggCdrFmtDict = None
         self.__tlPptFmtDict = None
-        self.__ffFirstRowFmtDict = None
-        self.__shuffleFmt = None
         self.__sharedZeroFfAsLine = None
 
-        if self.aggregateTimeUnit != conf.AggregateTimeUnit.HOUR_1:
+        if self.aggregateTimeUnit != bconf.AggregateTimeUnit.HOUR_1:
             raise NotSupportedError("Not supported aggregateTimeUnit: %s" % self.aggregateTimeUnit.name)
 
     def run(self):
@@ -74,14 +78,14 @@ class FeatureFrame3dConstructor(Moduler):
         os.mkdir(joinDir)
         self.__joinAggCdrAndPpt(self.aggregateCdrDir, self.aggregateTimeUnit, self.translatePropertyDir, joinDir)
         logging.debug("dump first row format of FeatureFrame: %s" % self.ffFirstRowFmtFilePath)
-        dumpFormatDict(self.__ffFirstRowFmtDict, self.ffFirstRowFmtFilePath)
+        dumpFormatDict(self.ffFirstRowFmt, self.ffFirstRowFmtFilePath)
 
         # TODO(20180703) copy && shuffle
         featureFrameDir = os.path.join(self.ff3TmpDir, "featureFrame")
         os.mkdir(featureFrameDir)
         self.__copyAndShuffle(joinDir, featureFrameDir)
         logging.debug("dump shuffle format of FeatureFrame: %s" % self.shuffleFmtFilePath)
-        dumpFormatDict(self.__shuffleFmt, self.shuffleFmtFilePath)
+        dumpFormatDict(self.shuffleFmt, self.shuffleFmtFilePath)
 
         # TODO(20180703) construct
         constructDir = os.path.join(self.ff3TmpDir, "construct")
@@ -99,44 +103,14 @@ class FeatureFrame3dConstructor(Moduler):
     def __joinAggCdrAndPpt(self, aggregateCdrDir, aggregateTimeUnit, translatePropertyDir, joinDir):
         aggCdrFmtDict = self.__aggCdrFmtDict
         tlPptFmtDict = self.__tlPptFmtDict
-        # FIXME(20180705) cannot use 0 as nan-value for CDR_TYPE_MODE, TALK_TYPE_MODE, PLAN_NAME, USER_TYPE and SELL_PRODUCT
-        ffFirstRowFeatures = [
-            # cdr value
-            "CALL_CNT",
-            "CALLED_UCNT",  # prefix "u" means unique
-            "CALLED_MCNT",  # prefix "m" means mode
-            "CALL_TIME_UCNT",
-            "CALL_TIME_MEAN",
-            "CALL_TIME_MODE",
-            "CALL_TIME_MCNT",
-            "CALL_TIME_STD",
-            "COST_UCNT",
-            "COST_MEAN",
-            "COST_MODE",
-            "COST_MCNT",
-            "COST_STD",
-            "CDR_TYPE_UCNT",
-            "CDR_TYPE_MODE",
-            "CDR_TYPE_MCNT",
-            "TALK_TYPE_UCNT",
-            "TALK_TYPE_MODE",
-            "TALK_TYPE_MCNT",
-            "CALLED_AREA_UCNT",
-            "CALLED_AREA_MCNT",
-            # property value
-            "PLAN_NAME",
-            "USER_TYPE",
-            "SELL_PRODUCT",
-        ]
-        assert len(set(ffFirstRowFeatures)) == len(ffFirstRowFeatures)
-        assert set(ffFirstRowFeatures) < (set(aggCdrFmtDict) | set(tlPptFmtDict))
-        ffFirstRowFmtDict = self.__ffFirstRowFmtDict = dict(zip(ffFirstRowFeatures, range(len(ffFirstRowFeatures))))
+        ffFirstRowFeatures = self.ffFirstRowFeatures
+        ffFirstRowFmt = self.ffFirstRowFmt
 
         tlPptFilePaths = glob.glob(os.path.join(translatePropertyDir, "*.%s" % bconf.DATA_FILE_SUFFIX))
         for tlPptFilePath in tlPptFilePaths:
             with open(tlPptFilePath, "r") as rTlPptFile:
                 for tlPptLine in rTlPptFile:
-                    tlPptCols = tlPptLine.strip().split(conf.COL_SEPERATOR)
+                    tlPptCols = tlPptLine.strip().split(bconf.COL_SEPERATOR)
                     calling = tlPptCols[tlPptFmtDict["CALLING"]]
                     joinDictBy_date = dict()
                     aggCdrFilePath = os.path.join(
@@ -146,20 +120,20 @@ class FeatureFrame3dConstructor(Moduler):
                         continue
                     with open(aggCdrFilePath, "r") as rAggCdrFile:
                         for aggCdrLine in rAggCdrFile:
-                            aggCdrCols = aggCdrLine.strip().split(conf.COL_SEPERATOR)
+                            aggCdrCols = aggCdrLine.strip().split(bconf.COL_SEPERATOR)
                             startTime = aggCdrCols[aggCdrFmtDict["START_TIME"]]
-                            assert self.aggregateTimeUnit == conf.AggregateTimeUnit.HOUR_1 and len(startTime) == 10
+                            assert self.aggregateTimeUnit == bconf.AggregateTimeUnit.HOUR_1 and len(startTime) == 10
                             date = startTime[:8]
                             hour = startTime[8:10]
                             joinCols = range(len(ffFirstRowFeatures))
                             for ffFirstRowFeature in ffFirstRowFeatures:
-                                joinCols[ffFirstRowFmtDict[ffFirstRowFeature]] = \
+                                joinCols[ffFirstRowFmt[ffFirstRowFeature]] = \
                                     self.__getFeatureValue(ffFirstRowFeature, aggCdrCols, tlPptCols)
                             if date not in joinDictBy_date:
                                 joinDictBy_date[date] = dict()
                                 # joinLinesBy_hour = joinDictBy_date[date]
                             assert hour not in joinDictBy_date[date]
-                            joinDictBy_date[date][hour] = conf.COL_SEPERATOR.join(joinCols)
+                            joinDictBy_date[date][hour] = bconf.COL_SEPERATOR.join(joinCols)
                     joinDirBy_calling = os.path.join(joinDir, "%s.%s" % (calling, bconf.KEY_DIR_SUFFIX))
                     os.mkdir(joinDirBy_calling)
                     for date in joinDictBy_date:
@@ -172,7 +146,8 @@ class FeatureFrame3dConstructor(Moduler):
                             wJoinFile.write(json.dumps(sortedHours))
                             wJoinFile.write("\n")
                             # file body(sorted by hour)
-                            wJoinFile.write(conf.ROW_SEPERATOR.join([joinLinesBy_hour[hour] for hour in sortedHours]))
+                            wJoinFile.write(
+                                bconf.ROW_SEPERATOR.join([joinLinesBy_hour[hour] for hour in sortedHours]))
 
     def __getFeatureValue(self, featureName, aggCdrCols, tlPptCols):
         if featureName in self.__tlPptFmtDict:
@@ -182,8 +157,7 @@ class FeatureFrame3dConstructor(Moduler):
             return aggCdrCols[self.__aggCdrFmtDict[featureName]]
 
     def __copyAndShuffle(self, joinDir, featureFrameDir):
-        self.__initShuffleFmt()
-        shuffleFmt = self.__shuffleFmt
+        shuffleFmt = self.shuffleFmt
 
         joinDirsBy_calling = glob.glob(os.path.join(joinDir, "*.%s" % bconf.KEY_DIR_SUFFIX))
         for joinDirBy_calling in joinDirsBy_calling:
@@ -197,29 +171,18 @@ class FeatureFrame3dConstructor(Moduler):
                 with open(joinFilePathBy_date, "r") as rJoinFile:
                     sortedHoursAsLine = rJoinFile.readline()
                     for joinLine in rJoinFile:
-                        firstRow = joinLine.strip().split(conf.COL_SEPERATOR)
+                        firstRow = joinLine.strip().split(bconf.COL_SEPERATOR)
                         featureFrameAsRow = list()
                         for shuffleRowFmt in shuffleFmt:
                             for colNoInFirstRow in shuffleRowFmt:
                                 featureFrameAsRow.append(firstRow[colNoInFirstRow])
-                        featureFramesAsLines.append(conf.COL_SEPERATOR.join(featureFrameAsRow))
+                        featureFramesAsLines.append(bconf.COL_SEPERATOR.join(featureFrameAsRow))
                 ffFilePathBy_date = os.path.join(ffDirBy_calling, "%s.%s" % (date, bconf.DATA_FILE_SUFFIX))
                 with open(ffFilePathBy_date, "w") as wFile:
                     # file header
                     wFile.write(sortedHoursAsLine)
                     # file body(sorted by hour)
-                    wFile.write(conf.ROW_SEPERATOR.join(featureFramesAsLines))
-
-    def __initShuffleFmt(self):
-        if self.__shuffleFmt is not None:
-            return
-        self.__shuffleFmt = range(conf.FeatureFrame3dDict.COPY_CNT)
-        firstRowOrder = range(len(self.__ffFirstRowFmtDict))
-        self.__shuffleFmt[0] = firstRowOrder
-        tmpRowOrder = list(firstRowOrder)
-        for rowNo in range(1, conf.FeatureFrame3dDict.COPY_CNT):
-            random.shuffle(tmpRowOrder)
-            self.__shuffleFmt[rowNo] = list(tmpRowOrder)
+                    wFile.write(bconf.ROW_SEPERATOR.join(featureFramesAsLines))
 
     def __constructFeatureFrame3d(self, featureFrameDir, constructDir):
         self.__initSharedZeroFfAsLine()
@@ -245,14 +208,14 @@ class FeatureFrame3dConstructor(Moduler):
                 # OPT(20180705) compress files cnt if needed
                 csFilePathBy_date = os.path.join(csDirBy_calling, "%s.%s" % (date, bconf.DATA_FILE_SUFFIX))
                 with open(csFilePathBy_date, "w") as wFile:
-                    wFile.write(conf.ROW_SEPERATOR.join(csFf3dAsMLinesBy_hour))
+                    wFile.write(bconf.ROW_SEPERATOR.join(csFf3dAsMLinesBy_hour))
                 self.stat.FfCnt += 1
 
     def __initSharedZeroFfAsLine(self):
         if self.__sharedZeroFfAsLine is not None:
             return
-        self.__sharedZeroFfAsLine = conf.COL_SEPERATOR.join(
-            map(lambda _: "0", range(len(self.__ffFirstRowFmtDict) * conf.FeatureFrame3dDict.COPY_CNT)))
+        self.__sharedZeroFfAsLine = bconf.COL_SEPERATOR.join(
+            map(lambda _: "0", range(len(self.ffFirstRowFmt) * bconf.FeatureFrame3dDict.COPY_CNT)))
 
 
 class _FeatureFrame3dStat(Stat):

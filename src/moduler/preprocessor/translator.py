@@ -1,12 +1,11 @@
 # coding=utf-8
-import datetime
 import glob
 import json
 import logging
 import os
 import shutil
 
-import base_conf as bconf
+import conf
 from src.moduler.moduler import Moduler, Stat
 
 
@@ -74,18 +73,18 @@ class _AbstractTranslator(Moduler):
 
         self.stat = self._newStat()
 
-        cleanFilePaths = glob.glob(os.path.join(self.cleanDir, "*.%s" % bconf.DATA_FILE_SUFFIX))
+        cleanFilePaths = glob.glob(os.path.join(self.cleanDir, "*.%s" % conf.DATA_FILE_SUFFIX))
         for cleanFilePath in cleanFilePaths:
             translateLines = list()
             with open(cleanFilePath, "r") as rfile:
                 for line in rfile:
-                    cols = map(lambda col: col.strip(), line.strip().split(bconf.COL_SEPERATOR))
+                    cols = map(lambda col: col.strip(), line.strip().split(conf.COL_SEPERATOR))
                     translateCols = self._translate(cols)
                     self._updateStat(cols, translateCols)
-                    translateLines.append(bconf.COL_SEPERATOR.join(translateCols))
+                    translateLines.append(conf.COL_SEPERATOR.join(translateCols))
             translateFilePath = os.path.join(self.translateDir, os.path.basename(cleanFilePath))
             with open(translateFilePath, "w") as wfile:
-                wfile.write(bconf.ROW_SEPERATOR.join(translateLines))
+                wfile.write(conf.ROW_SEPERATOR.join(translateLines))
 
         self._printStat()
 
@@ -116,10 +115,10 @@ class PropertyTranslator(_AbstractTranslator):
     def _translate(self, cols):
         translateCols = list(cols)
         fmtDict = self._formatDict
-        translateCols[fmtDict["PLAN_NAME"]] = str(bconf.PropertyDict.PLAN_NAME_DICT[cols[fmtDict["PLAN_NAME"]]])
-        translateCols[fmtDict["USER_TYPE"]] = str(bconf.PropertyDict.USER_TYPE_DICT[cols[fmtDict["USER_TYPE"]]])
+        translateCols[fmtDict["PLAN_NAME"]] = str(conf.PropertyDict.PLAN_NAME_DICT[cols[fmtDict["PLAN_NAME"]]])
+        translateCols[fmtDict["USER_TYPE"]] = str(conf.PropertyDict.USER_TYPE_DICT[cols[fmtDict["USER_TYPE"]]])
         translateCols[fmtDict["SELL_PRODUCT"]] = str(
-            bconf.PropertyDict.SELL_PRODUCT_DICT[cols[fmtDict["SELL_PRODUCT"]]])
+            conf.PropertyDict.SELL_PRODUCT_DICT[cols[fmtDict["SELL_PRODUCT"]]])
         return translateCols
 
 
@@ -131,10 +130,10 @@ class CdrTranslator(_AbstractTranslator):
         translateCols = list(cols)
         fmtDict = self._formatDict
         translateCols[fmtDict["CALL_TIME"]] = str(min(
-            int(cols[fmtDict["CALL_TIME"]]) / bconf.CdrDict.CALL_TIME_UNIT, 255))
-        translateCols[fmtDict["COST"]] = str(min(int(cols[fmtDict["COST"]]) / bconf.CdrDict.COST_UNIT, 255))
-        translateCols[fmtDict["CDR_TYPE"]] = str(bconf.CdrDict.CDR_TYPE_DICT[cols[fmtDict["CDR_TYPE"]]])
-        translateCols[fmtDict["TALK_TYPE"]] = str(bconf.CdrDict.TALK_TYPE_DICT[cols[fmtDict["TALK_TYPE"]]])
+            int(cols[fmtDict["CALL_TIME"]]) / conf.CdrDict.CALL_TIME_UNIT, 255))
+        translateCols[fmtDict["COST"]] = str(min(int(cols[fmtDict["COST"]]) / conf.CdrDict.COST_UNIT, 255))
+        translateCols[fmtDict["CDR_TYPE"]] = str(conf.CdrDict.CDR_TYPE_DICT[cols[fmtDict["CDR_TYPE"]]])
+        translateCols[fmtDict["TALK_TYPE"]] = str(conf.CdrDict.TALK_TYPE_DICT[cols[fmtDict["TALK_TYPE"]]])
         return translateCols
 
     def _newStat(self):

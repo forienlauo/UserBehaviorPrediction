@@ -1,7 +1,8 @@
 # coding=utf-8
 import logging
+import os
 
-import base_conf as bconf
+import conf
 from src.moduler.constructor.feature_frame_con import FeatureFrame3dConstructor
 from src.moduler.constructor.target_behavior_con import TargetBehaviorConstructor
 from src.moduler.preprocessor.aggregator import CdrAggregator
@@ -10,44 +11,79 @@ from src.moduler.preprocessor.translator import Translator
 
 
 class Processor(object):
-    def __init__(self, cdrDir=None, propertyDir=None, ):
+    def __init__(
+            self,
+            cdrDir=None, propertyDir=None,
+            wkdir=None,
+    ):
         super(Processor, self).__init__()
         self.cdrDir = cdrDir
         self.propertyDir = propertyDir
+        self.wkdir = wkdir
+        self.__initOtherMembers()
+
+    def __initOtherMembers(self):
+        wkdir = self.wkdir
+        # cleaner
+        self.cleanCdrDir = os.path.join(wkdir, "clean", "cdr")
+        self.cleanPptDir = os.path.join(wkdir, "clean", "property")
+        self.CLEAN_CDR_FORMAT_FILE = "__cdr.%s" % conf.FORMAT_FILE_SUFFIX
+        self.CLEAN_PPT_FORMAT_FILE = "__property.%s" % conf.FORMAT_FILE_SUFFIX
+        self.dirtyCdrDir = os.path.join(wkdir, "dirty", "cdr")
+        self.dirtyPptDir = os.path.join(wkdir, "dirty", "property")
+        # translator
+        self.translateCdrDir = os.path.join(wkdir, "translate", "cdr")
+        self.translatePptDir = os.path.join(wkdir, "translate", "property")
+        self.TL_CDR_FORMAT_FILE = "__cdr.%s" % conf.FORMAT_FILE_SUFFIX
+        self.TL_PPT_FORMAT_FILE = "__property.%s" % conf.FORMAT_FILE_SUFFIX
+        # aggregator
+        self.aggregateCdrDir = os.path.join(wkdir, "aggregate")
+        self.AGG_CDR_FORMAT_FILE = "__cdr.%s" % conf.FORMAT_FILE_SUFFIX
+        # feature frame 3d constructor
+        self.featureFrame3dDir = os.path.join(wkdir, "featureFrame3d")
+        self.SHUFFLE_FORMAT_FILE = "__shuffle.%s" % conf.FORMAT_FILE_SUFFIX
+        self.FF_FIRST_ROW_FORMAT_FILE = "__ffFirstRow.%s" % conf.FORMAT_FILE_SUFFIX
+        # target behavior constructor
+        self.targetBehaviorDir = os.path.join(wkdir, "targetBehavior")
 
     def run(self):
         import conf
+        # TODO(20180707) print progress
         cleaner = Cleaner(
             cdrDir=self.cdrDir, propertyDir=self.propertyDir,
-            cleanCdrDir=conf.CLEAN_CDR_DIR, cleanPropertyDir=conf.CLEAN_PPT_DIR,
-            dirtyCdrDir=conf.DIRTY_CDR_DIR, dirtyPropertyDir=conf.DIRTY_PPT_DIR,
-            cleanCdrFmtFileName=conf.CLEAN_CDR_FORMAT_FILE, cleanPptFmtFileName=conf.CLEAN_PPT_FORMAT_FILE,
+            cleanCdrDir=self.cleanCdrDir, cleanPropertyDir=self.cleanPptDir,
+            dirtyCdrDir=self.dirtyCdrDir, dirtyPropertyDir=self.dirtyPptDir,
+            cleanCdrFmtFileName=self.CLEAN_CDR_FORMAT_FILE, cleanPptFmtFileName=self.CLEAN_PPT_FORMAT_FILE,
         )
         cleaner.run()
         if not cleaner.checkExistCleanData():
             logging.warn("No clean cdr or property")
             return
+
         Translator(
-            cleanCdrDir=conf.CLEAN_CDR_DIR, cleanPropertyDir=conf.CLEAN_PPT_DIR,
-            cleanCdrFmtFileName=conf.CLEAN_CDR_FORMAT_FILE, cleanPptFmtFileName=conf.CLEAN_PPT_FORMAT_FILE,
-            translateCdrDir=conf.TRANSLATE_CDR_DIR, translatePropertyDir=conf.TRANSLATE_PPT_DIR,
-            tlCdrFmtFileName=conf.TL_CDR_FORMAT_FILE, tlPptFmtFileName=conf.TL_PPT_FORMAT_FILE,
+            cleanCdrDir=self.cleanCdrDir, cleanPropertyDir=self.cleanPptDir,
+            cleanCdrFmtFileName=self.CLEAN_CDR_FORMAT_FILE, cleanPptFmtFileName=self.CLEAN_PPT_FORMAT_FILE,
+            translateCdrDir=self.translateCdrDir, translatePropertyDir=self.translatePptDir,
+            tlCdrFmtFileName=self.TL_CDR_FORMAT_FILE, tlPptFmtFileName=self.TL_PPT_FORMAT_FILE,
         ).run()
         CdrAggregator(
-            translateCdrDir=conf.TRANSLATE_CDR_DIR, tlCdrFmtFileName=conf.TL_CDR_FORMAT_FILE,
-            aggregateCdrDir=conf.AGGREGATE_CDR_DIR, aggCdrFmtFileName=conf.AGG_CDR_FORMAT_FILE,
-            aggregateTimeUnit=bconf.AGGREGATE_TIME_UNIT,
+            translateCdrDir=self.translateCdrDir, tlCdrFmtFileName=self.TL_CDR_FORMAT_FILE,
+            aggregateCdrDir=self.aggregateCdrDir, aggCdrFmtFileName=self.AGG_CDR_FORMAT_FILE,
+            aggregateTimeUnit=conf.AggregateCdrDict.AGGREGATE_TIME_UNIT,
+            aggregateFeatures=conf.AggregateCdrDict.AGGREGATE_FEATURES,
+            aggregateFmt=conf.AggregateCdrDict.AGGREGATE_FMT,
         ).run()
+
         FeatureFrame3dConstructor(
-            aggregateCdrDir=conf.AGGREGATE_CDR_DIR, aggCdrFmtFileName=conf.AGG_CDR_FORMAT_FILE,
-            aggregateTimeUnit=bconf.AggregateTimeUnit.HOUR_1,
-            translatePropertyDir=conf.TRANSLATE_PPT_DIR, tlPptFmtFileName=conf.TL_PPT_FORMAT_FILE,
-            featureFrame3dDir=conf.FEATURE_FRAME_3D_DIR,
-            shuffleFmtFileName=conf.SHUFFLE_FORMAT_FILE, ffFirstRowFmtFileName=conf.FF_FIRST_ROW_FORMAT_FILE,
-            ffFirstRowFeatures=bconf.FeatureFrame3dDict.FIRST_ROW_FEATURES,
-            ffFirstRowFmt=bconf.FeatureFrame3dDict.FIRST_ROW_FMT, shuffleFmt=bconf.FeatureFrame3dDict.SHUFFLE_FMT,
+            aggregateCdrDir=self.aggregateCdrDir, aggCdrFmtFileName=self.AGG_CDR_FORMAT_FILE,
+            aggregateTimeUnit=conf.AggregateCdrDict.AGGREGATE_TIME_UNIT,
+            translatePropertyDir=self.translatePptDir, tlPptFmtFileName=self.TL_PPT_FORMAT_FILE,
+            featureFrame3dDir=self.featureFrame3dDir,
+            shuffleFmtFileName=self.SHUFFLE_FORMAT_FILE, ffFirstRowFmtFileName=self.FF_FIRST_ROW_FORMAT_FILE,
+            ffFirstRowFeatures=conf.FeatureFrame3dDict.FIRST_ROW_FEATURES,
+            ffFirstRowFmt=conf.FeatureFrame3dDict.FIRST_ROW_FMT, shuffleFmt=conf.FeatureFrame3dDict.SHUFFLE_FMT,
         ).run()
         TargetBehaviorConstructor(
-            featureFrame3dDir=conf.FEATURE_FRAME_3D_DIR, ffFirstRowFmtFileName=conf.FF_FIRST_ROW_FORMAT_FILE,
-            targetBehaviorDir=conf.TARGET_BEHAVIOR_DIR,
+            featureFrame3dDir=self.featureFrame3dDir, ffFirstRowFmtFileName=self.FF_FIRST_ROW_FORMAT_FILE,
+            targetBehaviorDir=self.targetBehaviorDir,
         ).run()

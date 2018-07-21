@@ -18,7 +18,9 @@ class FeatureFrame3dConstructor(Moduler):
             aggregateCdrDir=None, aggCdrFmtFileName=None,
             aggregateTimeUnit=None,
             translatePropertyDir=None, tlPptFmtFileName=None,
-            featureFrame3dDir=None, ffFirstRowFmtFileName=None, shuffleFmtFileName=None,
+            featureFrame3dDir=None,
+            depthTimeUnit=None,
+            ffFirstRowFmtFileName=None, shuffleFmtFileName=None,
             ffFirstRowFeatures=None, ffFirstRowFmt=None, shuffleFmt=None,
     ):
         super(FeatureFrame3dConstructor, self).__init__()
@@ -28,6 +30,7 @@ class FeatureFrame3dConstructor(Moduler):
         self.translatePropertyDir = translatePropertyDir
         self.tlPptFmtFilePath = os.path.join(self.translatePropertyDir, tlPptFmtFileName)
         self.featureFrame3dDir = featureFrame3dDir
+        self.depthTimeUnit = depthTimeUnit
         self.ff3TmpDir = os.path.join(self.featureFrame3dDir, ".tmp")
         self.shuffleFmtFilePath = os.path.join(self.featureFrame3dDir, shuffleFmtFileName)
         self.ffFirstRowFmtFilePath = os.path.join(self.featureFrame3dDir, ffFirstRowFmtFileName)
@@ -43,6 +46,9 @@ class FeatureFrame3dConstructor(Moduler):
 
         if self.aggregateTimeUnit != conf.AggregateCdrDict.AggregateTimeUnit.HOUR_1:
             raise NotSupportedError("Not supported aggregateTimeUnit: %s" % self.aggregateTimeUnit.name)
+        if self.depthTimeUnit != conf.FeatureFrame3dDict.DepthTimeUnit.DAY_1:
+            raise NotSupportedError("Not supported depthTimeUnit: %s" % self.depthTimeUnit.name)
+        assert conf.FeatureFrame3dDict.DEPTH_FF2D_CNT == 24
 
     def run(self):
         self.__init()
@@ -196,14 +202,15 @@ class FeatureFrame3dConstructor(Moduler):
                 date = os.path.basename(ffFilePathBy_date).rstrip("*.%s" % conf.DATA_FILE_SUFFIX)
                 # REFACTOR(20180705) extract depth time unit 24
                 # OPT(20180705) shrink to 12 hours in day
-                csFf3dAsMLinesBy_hour = map(lambda _: self.__sharedZeroFfAsLine, range(24))  # m means multi
+                csFf3dAsMLinesBy_hour = map(lambda _: self.__sharedZeroFfAsLine,
+                                            range(conf.FeatureFrame3dDict.DEPTH_FF2D_CNT))  # m means multi
                 with open(ffFilePathBy_date, "r") as rFfFile:
                     sortedHours = map(int, json.loads(rFfFile.readline().strip()))
                     hourNo = 0
                     for ffLine in rFfFile:
                         csFf3dAsMLinesBy_hour[sortedHours[hourNo]] = ffLine.strip()
                         hourNo += 1
-                    self.stat.zeroFfCnt += 24 - len(sortedHours)
+                    self.stat.zeroFfCnt += conf.FeatureFrame3dDict.DEPTH_FF2D_CNT - len(sortedHours)
                 # OPT(20180705) compress files cnt if needed
                 csFilePathBy_date = os.path.join(csDirBy_calling, "%s.%s" % (date, conf.DATA_FILE_SUFFIX))
                 with open(csFilePathBy_date, "w") as wFile:

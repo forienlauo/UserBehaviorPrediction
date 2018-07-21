@@ -36,6 +36,7 @@ class TargetBehaviorConstructor(Moduler):
 
         ff3dDirsBy_calling = glob.glob(os.path.join(self.featureFrame3dDir, "*.%s" % conf.KEY_DIR_SUFFIX))
         for ff3dDirBy_calling in ff3dDirsBy_calling:
+            # FIXME(20180721) replace rstrip with split as used in parallel_process.py
             calling = os.path.basename(ff3dDirBy_calling).rstrip(".%s" % conf.KEY_DIR_SUFFIX)
             tgtBhvDirBy_calling = os.path.join(self.targetBehaviorDir, "%s.%s" % (calling, conf.KEY_DIR_SUFFIX))
             os.mkdir(tgtBhvDirBy_calling)

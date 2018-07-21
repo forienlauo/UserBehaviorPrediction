@@ -5,12 +5,13 @@ import os
 import conf
 from src.moduler.constructor.feature_frame_con import FeatureFrame3dConstructor
 from src.moduler.constructor.target_behavior_con import TargetBehaviorConstructor
+from src.moduler.moduler import Moduler
 from src.moduler.preprocessor.aggregator import CdrAggregator
 from src.moduler.preprocessor.cleaner import Cleaner
 from src.moduler.preprocessor.translator import Translator
 
 
-class Processor(object):
+class Processor(Moduler):
     def __init__(
             self,
             cdrDir=None, propertyDir=None,
@@ -79,6 +80,7 @@ class Processor(object):
             aggregateTimeUnit=conf.AggregateCdrDict.AGGREGATE_TIME_UNIT,
             translatePropertyDir=self.translatePptDir, tlPptFmtFileName=self.TL_PPT_FORMAT_FILE,
             featureFrame3dDir=self.featureFrame3dDir,
+            depthTimeUnit=conf.FeatureFrame3dDict.DEPTH_TIME_UNIT,
             shuffleFmtFileName=self.SHUFFLE_FORMAT_FILE, ffFirstRowFmtFileName=self.FF_FIRST_ROW_FORMAT_FILE,
             ffFirstRowFeatures=conf.FeatureFrame3dDict.FIRST_ROW_FEATURES,
             ffFirstRowFmt=conf.FeatureFrame3dDict.FIRST_ROW_FMT, shuffleFmt=conf.FeatureFrame3dDict.SHUFFLE_FMT,

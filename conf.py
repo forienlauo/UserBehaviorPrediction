@@ -27,6 +27,7 @@ DATA_FILE_SUFFIX = "data.txt"
 FORMAT_FILE_SUFFIX = "format.json"
 KEY_DIR_SUFFIX = "calling"
 DIR_BY_DATE_SUFFIX = "date"
+CACHE_FILE_SUFFIX = "cache.npy"
 
 COL_SEPERATOR = "\t"
 ROW_SEPERATOR = "\n"
@@ -255,6 +256,22 @@ class FeatureFrame3dDict(object):
     # TODO(20180703) accurate calculate COPY_CNT judging by p
     COPY_CNT = 10
 
+    class DepthTimeUnit(Enum):
+        (
+            DAY_1,
+        ) = range(1)
+
+    DEPTH_TIME_UNIT = DepthTimeUnit.DAY_1
+    assert (AggregateCdrDict.AGGREGATE_TIME_UNIT == AggregateCdrDict.AggregateTimeUnit.HOUR_1
+            and DEPTH_TIME_UNIT == DepthTimeUnit.DAY_1)
+    # TODO(20180721) calculate by AGGREGATE_TIME_UNIT and DEPTH_TIME_UNIT
+    DEPTH_FF2D_CNT = 24
+
+    FF3D_WIDTH = len(FIRST_ROW_FEATURES)
+    FF3D_HEIGHT = COPY_CNT
+    FF3D_DEPTH = DEPTH_FF2D_CNT
+    FF3D_SHAPE = [FF3D_DEPTH, FF3D_HEIGHT, FF3D_WIDTH]
+
     FIRST_ROW_FMT = None
     SHUFFLE_FMT = None
 
@@ -286,3 +303,11 @@ class FeatureFrame3dDict(object):
             random.shuffle(tmpRowOrder)
             shuffleFmt[rowNo] = list(tmpRowOrder)
         FeatureFrame3dDict.SHUFFLE_FMT = shuffleFmt
+
+
+class TrainerDict(object):
+    LEARN_DAY_CNT = 7
+
+    FF3D_WIDTH = len(FeatureFrame3dDict.FIRST_ROW_FEATURES)
+    FF3D_HEIGHT = FeatureFrame3dDict.COPY_CNT
+    FF3D_DEPTH = LEARN_DAY_CNT

@@ -32,7 +32,7 @@ class Cleaner(Moduler):
     def run(self):
         self.__init()
 
-        logging.info("start to clean property: %s" % self.propertyDir)
+        logging.info("start to __clean property: %s" % self.propertyDir)
         self.__propertyCleaner = PropertyCleaner(
             inputDir=self.propertyDir,
             cleanDir=self.cleanPropertyDir, dirtyDir=self.dirtyPropertyDir,
@@ -40,17 +40,17 @@ class Cleaner(Moduler):
         )
         self.__propertyCleaner.run()
         cleanCallings = self.__propertyCleaner.getCleanCalling()
-        logging.info("output clean property: %s" % self.cleanPropertyDir)
+        logging.info("output __clean property: %s" % self.cleanPropertyDir)
         logging.info("output dirty property: %s" % self.dirtyPropertyDir)
 
-        logging.info("start to clean cdr: %s" % self.cdrDir)
+        logging.info("start to __clean cdr: %s" % self.cdrDir)
         self.__cdrCleaner = CdrCleaner(
             inputDir=self.cdrDir, cleanCallings=cleanCallings,
             cleanDir=self.cleanCdrDir, dirtyDir=self.dirtyCdrDir,
             cleanFmtFileName=self.cleanCdrFmtFileName,
         )
         self.__cdrCleaner.run()
-        logging.info("output clean cdr: %s" % self.cleanCdrDir)
+        logging.info("output __clean cdr: %s" % self.cleanCdrDir)
         logging.info("output dirty cdr: %s" % self.dirtyCdrDir)
 
     def __init(self):

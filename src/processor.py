@@ -26,8 +26,8 @@ class Processor(Moduler):
     def __initOtherMembers(self):
         wkdir = self.wkdir
         # cleaner
-        self.cleanCdrDir = os.path.join(wkdir, "clean", "cdr")
-        self.cleanPptDir = os.path.join(wkdir, "clean", "property")
+        self.cleanCdrDir = os.path.join(wkdir, "__clean", "cdr")
+        self.cleanPptDir = os.path.join(wkdir, "__clean", "property")
         self.CLEAN_CDR_FORMAT_FILE = "__cdr.%s" % conf.FORMAT_FILE_SUFFIX
         self.CLEAN_PPT_FORMAT_FILE = "__property.%s" % conf.FORMAT_FILE_SUFFIX
         self.dirtyCdrDir = os.path.join(wkdir, "dirty", "cdr")
@@ -58,7 +58,7 @@ class Processor(Moduler):
         )
         cleaner.run()
         if not cleaner.checkExistCleanData():
-            logging.warn("No clean cdr or property")
+            logging.warn("No __clean cdr or property")
             return
 
         Translator(

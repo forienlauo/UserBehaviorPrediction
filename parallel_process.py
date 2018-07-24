@@ -1,4 +1,5 @@
 # coding=utf-8
+import argparse
 import glob
 import json
 import logging
@@ -12,31 +13,48 @@ from src.common.util import getExceptionTrace
 from src.processor import Processor
 
 
+def __parseArgs():
+    parser = argparse.ArgumentParser(description='Parallel process data')
+
+    parser.add_argument("-c", "--cdrDir", required=True, help=u"cdr dir")
+    parser.add_argument("-p", "--propertyDir", required=True, help=u"property dir")
+
+    parser.add_argument("-w", "--wkdir", required=False, default="./process_wkdir",
+                        help=u"wkdir, must exist and be empty")
+
+    parser.add_argument("-W", "--workerCnt", type=int, required=False, default=4, help=u"parallel worker cnt")
+    parser.add_argument("-T", "--maxTaskCnt", type=int, required=False, default=16, help=u"max splitted task cnt")
+
+    parser.add_argument("-L", "--logLevel", required=False, default="info", help=u"log level")
+
+    parser.add_argument("-F", "--force", action="store_true", required=False, default=False,
+                        help=u"general force option, for example force removing wkdir is already exist")
+
+    g_options = parser.parse_args()
+    return g_options
+
+
 def main():
-    # OPT(20180630) support option
-    logLevel = sys.argv[1].upper()
-    cdrDir = sys.argv[2]
-    propertyDir = sys.argv[3]
-    wkdir = sys.argv[4]
-    workerCnt = int(sys.argv[5])
-    maxTaskCnt = int(sys.argv[6])
+    options = __parseArgs()
+
+    cdrDir = options.cdrDir
+    propertyDir = options.propertyDir
+
+    wkdir = options.wkdir
+
+    workerCnt = options.workerCnt
+    maxTaskCnt = options.maxTaskCnt
+
+    logLevel = options.logLevel
+
+    force = options.force
+
+    logLevel = logLevel.upper()
     # TODO(20180630) check args
 
-    conf.logLevel = conf.LogLevel[logLevel.upper()]
-
-    # REFACTOR(20180701) remove to check args
-    # TODO(20180701) support cache
-    if os.path.isdir(wkdir):
-        logging.warn("wkdir already exist, delete and create: %s" % wkdir)
-        shutil.rmtree(wkdir)
-    os.makedirs(wkdir)
-
-    logging.info("initing common conf")
-    conf.AggregateCdrDict.init()
-    conf.FeatureFrame3dDict.init()
-
+    logging.info("initing")
     tmpDir = os.path.join(wkdir, ".tmp")
-    os.mkdir(tmpDir)
+    __init(logLevel, wkdir, tmpDir, force)
 
     logging.info("mapping cdr")
     tmpCdrDir = os.path.join(tmpDir, "cdr")
@@ -85,10 +103,30 @@ def main():
 
     logging.info("merging result")
     merge2WorkDir(processors, wkdir)
+
     logging.info("cleaning")
-    shutil.rmtree(tmpDir)
+    __clean(tmpDir)
 
     return 0
+
+
+def __init(logLevel, wkdir, tmpDir, force):
+    conf.logLevel = conf.LogLevel[logLevel]
+    conf.AggregateCdrDict.init()
+    conf.FeatureFrame3dDict.init()
+
+    if os.path.isdir(wkdir):
+        logging.warn("wkdir already exist: %s" % wkdir)
+        if not force:
+            return 1
+        logging.warn("delete and create")
+        shutil.rmtree(wkdir)
+    os.makedirs(wkdir)
+    os.makedirs(tmpDir)
+
+
+def __clean(tmpDir):
+    shutil.rmtree(tmpDir)
 
 
 # TODO(20180707) print progress

@@ -66,7 +66,7 @@ class _AbstractTranslator(Moduler):
 
     # OPT(20180701) parallel
     def run(self):
-        logging.debug("load clean format: %s" % self.cleanFmtFilePath)
+        logging.debug("load __clean format: %s" % self.cleanFmtFilePath)
         self._formatDict = self._loadFormat()
         logging.debug("dump translate format: %s" % self.tlFmtFilePath)
         self._copyFormat()

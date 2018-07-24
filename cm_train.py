@@ -6,7 +6,7 @@ import shutil
 import sys
 
 import conf
-from src.moduler.adapter.cm_data_adapter import CmDataAdapter
+from src.moduler.adapter.cm_data_adapter import CmDataAdapter, CmData
 from src.moduler.trainer.cm_trainer import CmTrainer
 
 
@@ -69,10 +69,21 @@ def main():
     __init(logLevel, wkdir, force)
 
     logging.info("loading data")
-    cmData = CmDataAdapter(
-        featureFrame3dDir=featureFrame3dDir, targetBehaviorDir=targetBehaviorDir,
-        cacheDir=cacheDir,
-    ).run()
+    if cacheDir is not None and os.path.isdir(cacheDir):
+        logging.info("loading from cacheDir: %s" % cacheDir)
+        cmData = CmData.loadFromCacheDir(cacheDir)
+    else:
+        if cacheDir is None:
+            logging.info("cache closed")
+        else:
+            logging.info("cacheDir not exist: %s" % cacheDir)
+        cmData = CmDataAdapter(
+            featureFrame3dDir=featureFrame3dDir, targetBehaviorDir=targetBehaviorDir,
+        ).run()
+        if cacheDir is not None:
+            logging.info("dumping to cacheDir: %s" % cacheDir)
+            os.mkdir(cacheDir)
+            CmData.dumpToCacheDir(cmData, cacheDir)
 
     logging.info("splitting data for train(%f) and test(%f)" % (trainExampleP, 1.0 - trainExampleP))
     trainCmData, testCmData = cmData.splitTrainTest(trainExampleP)

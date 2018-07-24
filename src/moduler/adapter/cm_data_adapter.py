@@ -15,44 +15,18 @@ class CmDataAdapter(Moduler):
     def __init__(
             self,
             featureFrame3dDir=None, targetBehaviorDir=None,
-            cacheDir=None,
     ):
         super(CmDataAdapter, self).__init__()
         self.featureFrame3dDir = featureFrame3dDir
         self.targetBehaviorDir = targetBehaviorDir
-        self.cacheDir = cacheDir
-        if self.cacheDir is not None:
-            self.callingsCFilePath = os.path.join(cacheDir, "callings.%s" % conf.CACHE_FILE_SUFFIX)  # m means cache
-            self.predictDatesCFilePath = os.path.join(cacheDir, "predictDates.%s" % conf.CACHE_FILE_SUFFIX)
-            self.learnMFf3dsCFilePath = os.path.join(cacheDir, "learnMFf3ds.%s" % conf.CACHE_FILE_SUFFIX)
-            self.predictTbsCFilePath = os.path.join(cacheDir, "predictTbs.%s" % conf.CACHE_FILE_SUFFIX)
         self.__sharedZeroFf3d = None
         self.__sharedZeroTb = None
 
     def run(self):
-        if self.cacheDir is not None and os.path.isdir(self.cacheDir):
-            logging.info("loading from cacheDir: %s" % self.cacheDir)
-            callings = np.load(self.callingsCFilePath)
-            predictDates = np.load(self.predictDatesCFilePath)
-            learnMFf3ds = np.load(self.learnMFf3dsCFilePath)
-            predictTbs = np.load(self.predictTbsCFilePath)
-        else:
-            self.__init()
-            if self.cacheDir is None:
-                logging.info("cache closed")
-            else:
-                logging.info("cacheDir not exist: %s" % self.cacheDir)
-
-            logging.info("loading from featureFrame3dDir(%s) and targetBehaviorDir(%s)" %
-                         (self.featureFrame3dDir, self.targetBehaviorDir))
-            callings, predictDates, learnMFf3ds, predictTbs = map(np.array, self.__intRun())
-
-            if self.cacheDir is not None:
-                os.mkdir(self.cacheDir)
-                np.save(self.callingsCFilePath, callings)
-                np.save(self.predictDatesCFilePath, predictDates)
-                np.save(self.learnMFf3dsCFilePath, learnMFf3ds)
-                np.save(self.predictTbsCFilePath, predictTbs)
+        self.__init()
+        logging.info("loading from featureFrame3dDir(%s) and targetBehaviorDir(%s)" %
+                     (self.featureFrame3dDir, self.targetBehaviorDir))
+        callings, predictDates, learnMFf3ds, predictTbs = map(np.array, self.__intRun())
         return CmData(callings, predictDates, learnMFf3ds, predictTbs)
 
     def __init(self):
@@ -201,6 +175,31 @@ class CmData(object):
         learnMFf3ds = np.take(self.learnMFf3ds, idxs, axis=0)
         predictTbs = np.take(self.predictTbs, idxs, axis=0)
         return CmData(callings, predictDates, learnMFf3ds, predictTbs)
+
+    @staticmethod
+    def loadFromCacheDir(cacheDir):
+        cFilePaths = CmData._CFilePaths(cacheDir)
+        callings = np.load(cFilePaths.callings)
+        predictDates = np.load(cFilePaths.predictDates)
+        learnMFf3ds = np.load(cFilePaths.learnMFf3ds)
+        predictTbs = np.load(cFilePaths.predictTbs)
+        return CmData(callings, predictDates, learnMFf3ds, predictTbs)
+
+    @staticmethod
+    def dumpToCacheDir(cmData, cacheDir):
+        cFilePaths = CmData._CFilePaths(cacheDir)
+        np.save(cFilePaths.callings, cmData.callings)
+        np.save(cFilePaths.predictDates, cmData.predictDates)
+        np.save(cFilePaths.learnMFf3ds, cmData.learnMFf3ds)
+        np.save(cFilePaths.predictTbs, cmData.predictTbs)
+
+    class _CFilePaths(object):
+        def __init__(self, cacheDir):
+            super(CmData._CFilePaths, self).__init__()
+            self.callings = os.path.join(cacheDir, "callings.%s" % conf.CACHE_FILE_SUFFIX)  # c means cache
+            self.predictDates = os.path.join(cacheDir, "predictDates.%s" % conf.CACHE_FILE_SUFFIX)
+            self.learnMFf3ds = os.path.join(cacheDir, "learnMFf3ds.%s" % conf.CACHE_FILE_SUFFIX)
+            self.predictTbs = os.path.join(cacheDir, "predictTbs.%s" % conf.CACHE_FILE_SUFFIX)
 
 
 class _CmDataStat(Stat):

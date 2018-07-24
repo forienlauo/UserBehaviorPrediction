@@ -53,7 +53,7 @@ class CmDataAdapter(Moduler):
                 np.save(self.predictDatesCFilePath, predictDates)
                 np.save(self.learnMFf3dsCFilePath, learnMFf3ds)
                 np.save(self.predictTbsCFilePath, predictTbs)
-        return CMData(callings, predictDates, learnMFf3ds, predictTbs)
+        return CmData(callings, predictDates, learnMFf3ds, predictTbs)
 
     def __init(self):
         if self.__sharedZeroFf3d is not None:
@@ -96,7 +96,7 @@ class CmDataAdapter(Moduler):
                 if learnDayCnt == conf.TrainerDict.LEARN_DAY_CNT:
                     # make current learning example
                     predictDate = date
-                    predictTb = tbDict[calling].get(date, self.__sharedZeroTb)
+                    predictTb = [tbDict[calling].get(date, self.__sharedZeroTb)]
                     callings.append(calling)
                     predictDates.append(predictDate.strftime("%Y%m%d"))
                     learnMFf3ds.append(list(learnMFf3d))
@@ -112,7 +112,7 @@ class CmDataAdapter(Moduler):
                     learnDayCnt += 1
                 else:
                     assert learnMFf3d is None
-                    learnMFf3d = [None for _ in range(conf.TrainerDict.LEARN_DAY_CNT)]
+                    learnMFf3d = [None for _ in xrange(conf.TrainerDict.LEARN_DAY_CNT)]
                     learnMFf3d[learnDayCnt] = ff3d
                     learnDayCnt += 1
                 date += dayOne
@@ -159,17 +159,48 @@ class CmDataAdapter(Moduler):
         return tbDict
 
 
-class CMData(object):
+class CmData(object):
     def __init__(
             self,
             callings=None, predictDates=None,
-            learnFf3ds=None, predictTbs=None,
+            learnMFf3ds=None, predictTbs=None,
     ):
-        super(CMData, self).__init__()
+        super(CmData, self).__init__()
         self.callings = callings
         self.predictDates = predictDates
-        self.learnFf3ds = learnFf3ds
+        self.learnMFf3ds = learnMFf3ds
         self.predictTbs = predictTbs
+
+        assert len({
+            self.callings.shape[0], self.predictDates.shape[0], self.learnMFf3ds.shape[0], self.predictTbs.shape[0],
+        }) == 1
+        self.exampleCnt = int(self.callings.shape[0])
+
+    def splitTrainTest(self, trainExampleP=0.8):  # p means probability
+        assert 0.0 < trainExampleP < 1.0
+        trainExampleCnt = int(self.exampleCnt * trainExampleP)
+        testExampleCnt = self.exampleCnt - trainExampleCnt
+        logging.debug("trainExampleCnt: %d" % trainExampleCnt)
+        logging.debug("testExampleCnt: %d" % testExampleCnt)
+
+        sTrainExpIdxs = np.random.choice(self.exampleCnt, trainExampleCnt, replace=False)  # s means shuffled
+        sTestExpIdxs = np.array(list(set(range(self.exampleCnt)) - set(sTrainExpIdxs.tolist())))
+        np.random.shuffle(sTestExpIdxs)
+        trainCmData = self.__take(sTrainExpIdxs)
+        testCmData = self.__take(sTestExpIdxs)
+        return trainCmData, testCmData
+
+    def randomSampleBatch(self, batchSize):
+        sExpIdxs = np.random.choice(self.exampleCnt, batchSize, replace=False)  # s means shuffled
+        cmBatch = self.__take(sExpIdxs)
+        return cmBatch
+
+    def __take(self, idxs):
+        callings = np.take(self.callings, idxs, axis=0)
+        predictDates = np.take(self.predictDates, idxs, axis=0)
+        learnMFf3ds = np.take(self.learnMFf3ds, idxs, axis=0)
+        predictTbs = np.take(self.predictTbs, idxs, axis=0)
+        return CmData(callings, predictDates, learnMFf3ds, predictTbs)
 
 
 class _CmDataStat(Stat):

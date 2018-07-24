@@ -305,9 +305,9 @@ class FeatureFrame3dDict(object):
         FeatureFrame3dDict.SHUFFLE_FMT = shuffleFmt
 
 
+class FeatureVectorDict(object):
+    FEATURE_VECTOR_LEN = 64
+
+
 class TrainerDict(object):
     LEARN_DAY_CNT = 7
-
-    FF3D_WIDTH = len(FeatureFrame3dDict.FIRST_ROW_FEATURES)
-    FF3D_HEIGHT = FeatureFrame3dDict.COPY_CNT
-    FF3D_DEPTH = LEARN_DAY_CNT

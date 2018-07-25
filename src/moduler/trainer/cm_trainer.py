@@ -1,7 +1,6 @@
 # coding=utf-8
 import logging
 import os
-from operator import mul
 
 import tensorflow as tf
 
@@ -22,7 +21,8 @@ class CmTrainer(Moduler):
             trainCmData=None, testCmData=None,
             wkdir=None,
             lstmSize=None, batchSizeConf=None, keepProbConf=None,
-            cpuCoreCnt=None, iteration=None, printProgressPerStepCnt=None,
+            cpuCoreCnt=None, gpuNos=None, gpuMemFraction=None,
+            iteration=None, printProgressPerStepCnt=None,
     ):
         super(CmTrainer, self).__init__()
         self.trainCmData = trainCmData
@@ -35,6 +35,8 @@ class CmTrainer(Moduler):
         self.keepProbConf = keepProbConf
 
         self.cpuCoreCnt = cpuCoreCnt
+        self.gpuNos = gpuNos
+        self.gpuMemFraction = gpuMemFraction
         self.iteration = iteration
         self.printProgressPerStepCnt = printProgressPerStepCnt
 
@@ -44,12 +46,18 @@ class CmTrainer(Moduler):
         trainer = CmTrainer.Trainer(optimizer)
         evaluator = CmTrainer.Evaluator(loss)
 
-        # TODO(20180722) support GPU
-        config = tf.ConfigProto(
-            device_count={"CPU": self.cpuCoreCnt},
-            inter_op_parallelism_threads=self.cpuCoreCnt,
-            intra_op_parallelism_threads=self.cpuCoreCnt,
-        )
+        if self.gpuNos is not None:
+            assert self.gpuMemFraction is not None
+            os.environ["CUDA_VISIBLE_DEVICES"] = self.gpuNos
+            gpuOptions = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpuMemFraction)
+            config = tf.ConfigProto(gpu_options=gpuOptions)
+        else:
+            assert self.cpuCoreCnt is not None
+            config = tf.ConfigProto(
+                device_count={"CPU": self.cpuCoreCnt},
+                inter_op_parallelism_threads=self.cpuCoreCnt,
+                intra_op_parallelism_threads=self.cpuCoreCnt,
+            )
 
         logging.info("start to train.")
         with tf.Session(config=config) as sess:
@@ -114,14 +122,12 @@ class CmTrainer(Moduler):
         return batchSize, keepProb, x, y_, y, loss, optimizer
 
     def __constructFeatureMapScope(self, batchSize, ff3d, ff3dShape, fvLen, learnDayCnt):
-        # TODO(20180722) impl cnn
-
+        # # a simple impl
         # _elemCntPerFf3d = reduce(mul, ff3dShape)
         # _v = tf.reshape(ff3d, [batchSize * learnDayCnt] + [_elemCntPerFf3d])
         # _fmWeight = tf.Variable(tf.truncated_normal([_elemCntPerFf3d, fvLen], stddev=0.01))
         # _fmBia = tf.zeros([fvLen])
         # fv = tf.add(tf.matmul(_v, _fmWeight), _fmBia, name="fv")
-
 
         convDepth, convHeight, convWidth = CmTrainer.CONV_DEPTH, CmTrainer.CONV_HEIGHT, CmTrainer.CONV_WIDTH
         neuronsNums = [64, 128, 256]

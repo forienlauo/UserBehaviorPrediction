@@ -27,6 +27,9 @@ def __parseArgs():
     parser.add_argument("-k", "--keepProbConf", type=float, required=False, default=0.5, help=u"keepProb configured")
 
     parser.add_argument("-C", "--cpuCoreCnt", type=int, required=False, default=1, help=u"cpuCore cnt")
+    parser.add_argument("-G", "--gpuNos", required=False, default=None, help=u"gpu no s, separated by comma")
+    parser.add_argument("-M", "--gpuMemFraction", type=float, required=False, default=1.0,
+                        help=u"per process gpu memory fraction")
     parser.add_argument("-I", "--iteration", type=int, required=False, default=100, help=u"train step iteration")
     parser.add_argument("-S", "--printProgressPerStepCnt", type=int, required=False, default=10,
                         help=u"print progress per step cnt")
@@ -54,6 +57,8 @@ def main():
     keepProbConf = options.keepProbConf
 
     cpuCoreCnt = options.cpuCoreCnt
+    gpuNos = options.gpuNos
+    gpuMemFraction = options.gpuMemFraction
     iteration = options.iteration
     printProgressPerStepCnt = options.printProgressPerStepCnt
 
@@ -94,7 +99,8 @@ def main():
         trainCmData=trainCmData, testCmData=testCmData,
         wkdir=wkdir,
         lstmSize=lstmSize, batchSizeConf=batchSizeConf, keepProbConf=keepProbConf,
-        cpuCoreCnt=cpuCoreCnt, iteration=iteration, printProgressPerStepCnt=printProgressPerStepCnt,
+        cpuCoreCnt=cpuCoreCnt, gpuNos=gpuNos, gpuMemFraction=gpuMemFraction,
+        iteration=iteration, printProgressPerStepCnt=printProgressPerStepCnt,
     ).run()
 
     logging.info("cleaning")

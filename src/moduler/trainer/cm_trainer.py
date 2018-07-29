@@ -130,6 +130,7 @@ class CmTrainer(Moduler):
         # fv = tf.add(tf.matmul(_v, _fmWeight), _fmBia, name="fv")
 
         convDepth, convHeight, convWidth = CmTrainer.CONV_DEPTH, CmTrainer.CONV_HEIGHT, CmTrainer.CONV_WIDTH
+        # TODO(20180727) extract as args
         neuronsNums = [64, 128, 256]
 
         def weightVar(shape, name=None, ):
@@ -242,18 +243,25 @@ class CmTrainer(Moduler):
 
     def __constructFeaturePredictScope(self, batchSize, fv, fvLen, learnDayCnt):
         _lstmSize = self.lstmSize
-        _mFv = tf.transpose(tf.reshape(fv, [batchSize] + [learnDayCnt, fvLen]), perm=[0, 2, 1], name="mFv")
-        _cell = tf.contrib.rnn.MultiRNNCell(
-            [tf.contrib.rnn.BasicLSTMCell(_lstmSize) for _ in xrange(learnDayCnt)])
-        # # dropout
-        # _cell = tf.contrib.rnn.DropoutWrapper(_cell, output_keep_prob=keepProbRnn)
-        _initialState = _cell.zero_state(batchSize, tf.float32)
-        # predictFV: shape[None, fvLen, _lstmSize]
-        _output, _final_state = tf.nn.dynamic_rnn(_cell, _mFv, initial_state=_initialState)
-        _output = tf.reshape(_output, [-1] + [fvLen * _lstmSize], name="output")
-        _fpWeight = tf.Variable(tf.truncated_normal([fvLen * _lstmSize, fvLen], stddev=0.01))
-        _fpBia = tf.zeros([fvLen])
-        predictFV = tf.add(tf.matmul(_output, _fpWeight), _fpBia, name="predictFV")
+
+        with tf.name_scope('internalInput') as _:
+            _mFv = tf.transpose(tf.reshape(fv, [batchSize] + [learnDayCnt, fvLen]), perm=[0, 2, 1], name="mFv")
+
+        with tf.name_scope('lstmCells') as _:
+            _cell = tf.contrib.rnn.MultiRNNCell(
+                [tf.contrib.rnn.BasicLSTMCell(_lstmSize) for _ in xrange(learnDayCnt)])
+            # # dropout
+            # _cell = tf.contrib.rnn.DropoutWrapper(_cell, output_keep_prob=keepProbRnn)
+            _initialState = _cell.zero_state(batchSize, tf.float32)
+            # predictFV: shape[None, fvLen, _lstmSize]
+            _output, _final_state = tf.nn.dynamic_rnn(_cell, _mFv, initial_state=_initialState)
+
+        with tf.name_scope('internalOutput') as _:
+            _output = tf.reshape(_output, [-1] + [fvLen * _lstmSize])
+            _fpWeight = tf.Variable(tf.truncated_normal([fvLen * _lstmSize, fvLen], stddev=0.01))
+            _fpBia = tf.zeros([fvLen])
+            predictFV = tf.add(tf.matmul(_output, _fpWeight), _fpBia, name="predictFV")
+
         return predictFV
 
     class Trainer(object):

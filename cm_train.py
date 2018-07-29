@@ -22,7 +22,19 @@ def __parseArgs():
     parser.add_argument("-w", "--wkdir", required=False, default="./train_wkdir",
                         help=u"wkdir, must exist and be empty")
 
+    parser.add_argument("-csh", "--convShape", required=False, default="6,2,5",
+                        help=u"shared ConvNeuron shape[depth, height, width], dimensions separated by comma, supports only 3D ConvNeuron")
+    parser.add_argument("-cst", "--convStrides", required=False, default="1,1,1",
+                        help=u"shared ConvNeuron strides[depth, height, width], dimensions separated by comma, supports only 3D ConvNeuron")
+    parser.add_argument("-psh", "--poolShape", required=False, default="2,2,2",
+                        help=u"shared pool shape[depth, height, width], dimensions separated by comma, supports only 3D pool")
+    parser.add_argument("-pst", "--poolStrides", required=False, default="2,2,2",
+                        help=u"shared pool strides[depth, height, width], dimensions separated by comma, supports only 3D pool")
+    parser.add_argument("-ccs", "--convCnts", required=False, default="64,128,256",
+                        help=u"ConvNeuron cnt s, separated by comma, supported only 3 conv layers")
+
     parser.add_argument("-l", "--lstmSize", type=int, required=False, default=20, help=u"LSTMCell size")
+
     parser.add_argument("-b", "--batchSizeConf", type=int, required=False, default=20, help=u"batch size configured")
     parser.add_argument("-k", "--keepProbConf", type=float, required=False, default=0.5, help=u"keepProb configured")
 
@@ -52,7 +64,14 @@ def main():
     cacheDir = options.cacheDir
     wkdir = options.wkdir
 
+    convShape = map(int, str(options.convShape).split(","))
+    convStrides = map(int, str(options.convStrides).split(","))
+    poolShape = map(int, str(options.poolShape).split(","))
+    poolStrides = map(int, str(options.poolStrides).split(","))
+    convCnts = map(int, str(options.convCnts).split(","))
+
     lstmSize = options.lstmSize
+
     batchSizeConf = options.batchSizeConf
     keepProbConf = options.keepProbConf
 
@@ -98,7 +117,9 @@ def main():
     CmTrainer(
         trainCmData=trainCmData, testCmData=testCmData,
         wkdir=wkdir,
-        lstmSize=lstmSize, batchSizeConf=batchSizeConf, keepProbConf=keepProbConf,
+        convShape=convShape, convStrides=convStrides, poolShape=poolShape, poolStrides=poolStrides, convCnts=convCnts,
+        lstmSize=lstmSize,
+        batchSizeConf=batchSizeConf, keepProbConf=keepProbConf,
         cpuCoreCnt=cpuCoreCnt, gpuNos=gpuNos, gpuMemFraction=gpuMemFraction,
         iteration=iteration, printProgressPerStepCnt=printProgressPerStepCnt,
     ).run()

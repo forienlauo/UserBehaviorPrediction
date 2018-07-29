@@ -10,17 +10,14 @@ from src.moduler.moduler import Moduler
 
 class CmTrainer(Moduler):
     # cnn configuration
-    CONV_DEPTH, CONV_HEIGHT, CONV_WIDTH = 6, 2, 5
-    CONV_STRIDES_D, CONV_STRIDES_H, CONV_STRIDES_W = 1, 1, 1
-    POOL_STRIDES_D, POOL_STRIDES_H, POOL_STRIDES_W = 2, 2, 2
-
-    POOL_SHAPE = [1, 2, 2, 2, 1]  # [1, POOL_DEPTH, POOL_WIDTH, POOL_HEIGHT,1]
 
     def __init__(
             self,
             trainCmData=None, testCmData=None,
             wkdir=None,
-            lstmSize=None, batchSizeConf=None, keepProbConf=None,
+            convShape=None, convStrides=None, poolShape=None, poolStrides=None, convCnts=None,
+            lstmSize=None,
+            batchSizeConf=None, keepProbConf=None,
             cpuCoreCnt=None, gpuNos=None, gpuMemFraction=None,
             iteration=None, printProgressPerStepCnt=None,
     ):
@@ -30,7 +27,14 @@ class CmTrainer(Moduler):
         self.wkdir = wkdir
         self.summaryDir = os.path.join(self.wkdir, "summary")
 
+        self.convShape = convShape
+        self.convStrides = convStrides
+        self.poolShape = poolShape
+        self.poolStrides = poolStrides
+        self.convCnts = convCnts
+
         self.lstmSize = lstmSize
+
         self.batchSizeConf = batchSizeConf
         self.keepProbConf = keepProbConf
 
@@ -98,10 +102,7 @@ class CmTrainer(Moduler):
             y_ = tf.placeholder(tf.float32, shape=[None] + [1], name="y_")
 
         with tf.name_scope('featureMap') as _:
-            # add channel
-            ff3d = tf.reshape(x, [batchSize * learnDayCnt] + ff3dShape + [1], name="ff3d")
-            fv = self.__constructFeatureMapScope(batchSize, ff3d, ff3dShape, fvLen, learnDayCnt)
-            # fv = None
+            fv = self.__constructFeatureMapScope(batchSize, x, ff3dShape, fvLen, learnDayCnt)
 
         with tf.name_scope('featurePredict') as _:
             predictFv = self.__constructFeaturePredictScope(batchSize, fv, fvLen, learnDayCnt)
@@ -121,7 +122,7 @@ class CmTrainer(Moduler):
 
         return batchSize, keepProb, x, y_, y, loss, optimizer
 
-    def __constructFeatureMapScope(self, batchSize, ff3d, ff3dShape, fvLen, learnDayCnt):
+    def __constructFeatureMapScope(self, batchSize, x, ff3dShape, fvLen, learnDayCnt):
         # # a simple impl
         # _elemCntPerFf3d = reduce(mul, ff3dShape)
         # _v = tf.reshape(ff3d, [batchSize * learnDayCnt] + [_elemCntPerFf3d])
@@ -129,9 +130,11 @@ class CmTrainer(Moduler):
         # _fmBia = tf.zeros([fvLen])
         # fv = tf.add(tf.matmul(_v, _fmWeight), _fmBia, name="fv")
 
-        convDepth, convHeight, convWidth = CmTrainer.CONV_DEPTH, CmTrainer.CONV_HEIGHT, CmTrainer.CONV_WIDTH
-        # TODO(20180727) extract as args
-        neuronsNums = [64, 128, 256]
+        convShape = self.convShape
+        convStrides = self.convStrides
+        poolShape = self.poolShape
+        poolStrides = self.poolStrides
+        convCnts = self.convCnts
 
         def weightVar(shape, name=None, ):
             initial = tf.truncated_normal(shape, stddev=0.1)
@@ -142,63 +145,68 @@ class CmTrainer(Moduler):
             return tf.Variable(initial, name=name, )
 
         def conv3d(
-                x, W,
-                strides=(1, CmTrainer.CONV_STRIDES_D, CmTrainer.CONV_STRIDES_H, CmTrainer.CONV_STRIDES_W, 1),
-                padding='SAME', name=None,
+                x, filter,
+                strides, padding='SAME',
+                name=None,
         ):
-            return tf.nn.conv3d(x, W, strides, padding, name=name, )
+            return tf.nn.conv3d(x, filter, strides, padding, name=name, )
 
         def max_pool3d(
                 x, ksize,
-                strides=(1, CmTrainer.POOL_STRIDES_D, CmTrainer.POOL_STRIDES_H, CmTrainer.POOL_STRIDES_W, 1),
-                padding='SAME', name=None,
+                strides, padding='SAME',
+                name=None,
         ):
             return tf.nn.max_pool3d(x, ksize, strides, padding, name=name, )
 
-        out0 = ff3d
+        with tf.name_scope('internalInput') as _:
+            ff3d = tf.reshape(x, [batchSize * learnDayCnt] + ff3dShape + [1], name="ff3d")
+            out0 = ff3d
 
         with tf.name_scope('C1') as _:
             _in = out0
             _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
             _inChannels = _in.get_shape()[4].value
-            _outChannels = neuronsNums[0]
+            _outChannels = convCnts[0]
 
-            _weight = weightVar(
-                [convDepth, convHeight, convWidth, _inChannels, _outChannels], name='weight', )
+            _weight = weightVar(convShape + [_inChannels, _outChannels], name='weight', )
             tf.summary.histogram('weight', _weight)
             _bia = biaVar([_outChannels], name='bia', )
             tf.summary.histogram('bia', _bia)
             # TODO(20180724) split conv node and activate node
-            _convRs = tf.nn.relu(conv3d(_in, _weight) + _bia, name='convRs', )
+            _convRs = tf.nn.relu(
+                conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
 
             out = _convRs
 
         with tf.name_scope('S2') as _:
             _in = out
 
-            _s2PoolRs = max_pool3d(_in, CmTrainer.POOL_SHAPE, name='s2PoolRs', )
+            _poolRs = max_pool3d(
+                _in, [1] + poolShape + [1], strides=[1] + poolStrides + [1], name='poolRs', )
 
-            out = _s2PoolRs
+            out = _poolRs
 
         with tf.name_scope('C3') as _:
             _in = out
             _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
             _inChannels = _in.get_shape()[4].value
-            _outChannels = neuronsNums[1]
+            _outChannels = convCnts[1]
 
             _weight = weightVar(
-                [convDepth, convHeight, convWidth, _inChannels, _outChannels], name='weight', )
+                convShape + [_inChannels, _outChannels], name='weight', )
             tf.summary.histogram('weight', _weight)
             _bia = biaVar([_outChannels], name='bia', )
             tf.summary.histogram('bia', _bia)
-            _convRs = tf.nn.relu(conv3d(_in, _weight) + _bia, name='convRs', )
+            _convRs = tf.nn.relu(
+                conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
 
             out = _convRs
 
         with tf.name_scope('S4') as _:
             _in = out
 
-            _poolRs = max_pool3d(_in, CmTrainer.POOL_SHAPE, name='poolRs', )
+            _poolRs = max_pool3d(
+                _in, [1] + poolShape + [1], strides=[1] + poolStrides + [1], name='poolRs', )
 
             out = _poolRs
 
@@ -206,14 +214,15 @@ class CmTrainer(Moduler):
             _in = out
             _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
             _inChannels = _in.get_shape()[4].value
-            _outChannels = neuronsNums[2]
+            _outChannels = convCnts[2]
 
             _weight = weightVar(
-                [convDepth, convHeight, convWidth, _inChannels, _outChannels], name='weight', )
+                convShape + [_inChannels, _outChannels], name='weight', )
             tf.summary.histogram('weight', _weight)
             _bia = biaVar([_outChannels], name='bia', )
             tf.summary.histogram('bia', _bia)
-            _convRs = tf.nn.relu(conv3d(_in, _weight) + _bia, name='convRs', )
+            _convRs = tf.nn.relu(
+                conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
 
             out = _convRs
 
@@ -242,23 +251,23 @@ class CmTrainer(Moduler):
         return fv
 
     def __constructFeaturePredictScope(self, batchSize, fv, fvLen, learnDayCnt):
-        _lstmSize = self.lstmSize
+        lstmSize = self.lstmSize
+
+        def lstmCell(lstmSize):
+            return tf.contrib.rnn.BasicLSTMCell(lstmSize)
 
         with tf.name_scope('internalInput') as _:
             _mFv = tf.transpose(tf.reshape(fv, [batchSize] + [learnDayCnt, fvLen]), perm=[0, 2, 1], name="mFv")
 
         with tf.name_scope('lstmCells') as _:
-            _cell = tf.contrib.rnn.MultiRNNCell(
-                [tf.contrib.rnn.BasicLSTMCell(_lstmSize) for _ in xrange(learnDayCnt)])
-            # # dropout
-            # _cell = tf.contrib.rnn.DropoutWrapper(_cell, output_keep_prob=keepProbRnn)
+            _cell = tf.contrib.rnn.MultiRNNCell([lstmCell(lstmSize) for _ in xrange(learnDayCnt)])
             _initialState = _cell.zero_state(batchSize, tf.float32)
-            # predictFV: shape[None, fvLen, _lstmSize]
+            # _output: shape[None, fvLen, lstmSize]
             _output, _final_state = tf.nn.dynamic_rnn(_cell, _mFv, initial_state=_initialState)
 
         with tf.name_scope('internalOutput') as _:
-            _output = tf.reshape(_output, [-1] + [fvLen * _lstmSize])
-            _fpWeight = tf.Variable(tf.truncated_normal([fvLen * _lstmSize, fvLen], stddev=0.01))
+            _output = tf.reshape(_output, [-1] + [fvLen * lstmSize])
+            _fpWeight = tf.Variable(tf.truncated_normal([fvLen * lstmSize, fvLen], stddev=0.01))
             _fpBia = tf.zeros([fvLen])
             predictFV = tf.add(tf.matmul(_output, _fpWeight), _fpBia, name="predictFV")
 

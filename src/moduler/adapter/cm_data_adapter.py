@@ -27,6 +27,9 @@ class CmDataAdapter(Moduler):
         logging.info("loading from featureFrame3dDir(%s) and targetBehaviorDir(%s)" %
                      (self.featureFrame3dDir, self.targetBehaviorDir))
         callings, predictDates, learnMFf3ds, predictTbs = map(np.array, self.__intRun())
+        # normalize
+        learnMFf3ds = np.divide(learnMFf3ds, 255.0)
+        predictTbs = np.divide(predictTbs, 255.0 * 255.0)
         return CmData(callings, predictDates, learnMFf3ds, predictTbs)
 
     def __init(self):

@@ -343,4 +343,4 @@ class CmTrainer(Moduler):
                 self.exampleCnt = exampleCnt
 
             def __str__(self):
-                return "result {lossV: %.2f, example_cnt: %d}" % (self.lossV, self.exampleCnt,)
+                return "result {lossV: %.6f, example_cnt: %d}" % (self.lossV, self.exampleCnt,)

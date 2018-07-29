@@ -206,7 +206,7 @@ class AggregateCdrDict(object):
     AGGREGATE_TIME_UNIT = AggregateTimeUnit.HOUR_1
 
     # TODO(20180703) tuning refer to stat in aggregating
-    NORMAL_CALL_RATE = 20 / 3600.0
+    NORMAL_CALL_CNT_RATE = 20 / 3600.0
 
     @staticmethod
     def init():

@@ -62,7 +62,8 @@ class TargetBehaviorConstructor(Moduler):
         # attention: 由于套餐的业务逻辑，cost通常为0，预测cost无法得到有意义的结果
         sumCallTime = 0.0
         for ffFirstRow in ffFirstRows:
-            costBy_hour = float(ffFirstRow[self.__ffFirstRowFmtDict["CALL_CNT"]]) \
-                          * float(ffFirstRow[self.__ffFirstRowFmtDict["CALL_TIME_MEAN"]])
-            sumCallTime += float(costBy_hour)
+            callTimeBy_hour = float(ffFirstRow[self.__ffFirstRowFmtDict["CALL_CNT"]]) \
+                              * float(ffFirstRow[self.__ffFirstRowFmtDict["CALL_TIME_MEAN"]])
+            sumCallTime += float(callTimeBy_hour)
+        # FIXME(20180729) normalize to 0~255
         return str(sumCallTime)

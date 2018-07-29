@@ -267,8 +267,8 @@ class CdrAggregator(Moduler):
             raise NotSupportedError("Not support current AggregateTimeUnit: %s" % self.aggregateTimeUnit.name)
         assert translateXCnt is not None
 
-        translateXCnt = min(translateXCnt, 255.0 * conf.AggregateCdrDict.NORMAL_CALL_RATE)
-        translateXCnt /= conf.AggregateCdrDict.NORMAL_CALL_RATE
+        translateXCnt = min(translateXCnt, 255.0 * conf.AggregateCdrDict.NORMAL_CALL_CNT_RATE)
+        translateXCnt /= conf.AggregateCdrDict.NORMAL_CALL_CNT_RATE
         return translateXCnt
 
 

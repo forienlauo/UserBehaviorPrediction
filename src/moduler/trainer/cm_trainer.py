@@ -118,14 +118,30 @@ class CmTrainer(Moduler):
             y = tf.add(tf.matmul(predictFv, _tbrWeight), _tbrBia, name="y")
 
         with tf.name_scope('optimize') as _:
-            # TODO(20180722) define name of loss
-            loss = tf.losses.mean_squared_error(y_, y)
-            optimize = tf.train.AdamOptimizer().minimize(loss, name="optimize")
+            # TODO(20180722) define name of lossMse
+            # lossMse = tf.losses.mean_squared_error(y_, y)
+            _batchSizeF = tf.cast(batchSize, tf.float32)
+            _lossSe = tf.square(tf.subtract(y, y_))  # squared error
+            lossMse = tf.div(tf.reduce_sum(_lossSe), _batchSizeF, name="lossMse")  # mean squared error
+            lossRmse = tf.sqrt(lossMse, name="lossRmse")  # root mean squared error
+            _lossAe = tf.abs(tf.subtract(y, y_))  # abstract error
+            lossMae = tf.div(tf.reduce_sum(_lossAe), _batchSizeF, name="lossMae")  # mean abstract error
+            _lossSr = tf.square(tf.subtract(tf.reduce_mean(y), y_))  # squared residual
+            lossR2 = tf.subtract(tf.ones([]), tf.div(tf.reduce_sum(_lossSe), tf.reduce_sum(_lossSr)),
+                                 name="lossR2")  # r2
+            lossmRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossmRrmse")
 
-            tf.summary.scalar('loss', loss)
+            optimize = tf.train.AdamOptimizer().minimize(lossMse, name="optimize")
+
+            tf.summary.scalar('lossMse', lossMse)
+            tf.summary.scalar('lossRmse', lossRmse)
+            tf.summary.scalar('lossMae', lossMae)
+            tf.summary.scalar('lossR2', lossR2)
+            tf.summary.scalar('lossmRrmse', lossmRrmse)
+
+            evaluator = CmTrainer._Evaluator(lossMse)
 
             trainer = CmTrainer._Trainer(optimize)
-            evaluator = CmTrainer._Evaluator(loss)
 
         return runConf, runInput, trainer, evaluator
 

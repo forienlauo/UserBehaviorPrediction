@@ -90,7 +90,9 @@ def main():
     # TODO(20180630) check args
 
     logging.info("initing")
-    __init(logLevel, wkdir, force)
+    rc = __init(logLevel, wkdir, force)
+    if rc != 0:
+        return rc
 
     logging.info("loading data")
     if cacheDir is not None and os.path.isdir(cacheDir):
@@ -141,6 +143,7 @@ def __init(logLevel, wkdir, force):
         logging.warn("delete and create")
         shutil.rmtree(wkdir)
     os.makedirs(wkdir)
+    return 0
 
 
 def __clean():

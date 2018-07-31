@@ -54,7 +54,9 @@ def main():
 
     logging.info("initing")
     tmpDir = os.path.join(wkdir, ".tmp")
-    __init(logLevel, wkdir, tmpDir, force)
+    rc = __init(logLevel, wkdir, tmpDir, force)
+    if rc != 0:
+        return rc
 
     logging.info("mapping cdr")
     tmpCdrDir = os.path.join(tmpDir, "cdr")
@@ -123,6 +125,7 @@ def __init(logLevel, wkdir, tmpDir, force):
         shutil.rmtree(wkdir)
     os.makedirs(wkdir)
     os.makedirs(tmpDir)
+    return 0
 
 
 def __clean(tmpDir):

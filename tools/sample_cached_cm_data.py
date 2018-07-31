@@ -45,7 +45,9 @@ def main():
     # TODO(20180630) check args
 
     logging.info("initing")
-    __init(logLevel, sampledCacheDir, force)
+    rc = __init(logLevel, sampledCacheDir, force)
+    if rc != 0:
+        return rc
 
     logging.info("loading data from originalCacheDir: %s" % originalCacheDir)
     orgCmData = CmData.loadFromCacheDir(originalCacheDir)
@@ -79,6 +81,7 @@ def __init(logLevel, sampledCacheDir, force):
         logging.warn("delete and create")
         shutil.rmtree(sampledCacheDir)
     os.makedirs(sampledCacheDir)
+    return 0
 
 
 def __clean():

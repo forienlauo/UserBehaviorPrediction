@@ -9,8 +9,6 @@ from src.moduler.moduler import Moduler
 
 
 class CmTrainer(Moduler):
-    # cnn configuration
-
     def __init__(
             self,
             trainCmData=None, testCmData=None,
@@ -47,8 +45,8 @@ class CmTrainer(Moduler):
     def run(self):
         self.__init()
         batchSize, keepProb, x, y_, y, loss, optimizer = self.__construct()
-        trainer = CmTrainer.Trainer(optimizer)
-        evaluator = CmTrainer.Evaluator(loss)
+        trainer = CmTrainer._Trainer(optimizer)
+        evaluator = CmTrainer._Evaluator(loss)
 
         if self.gpuNos is not None:
             assert self.gpuMemFraction is not None
@@ -120,6 +118,8 @@ class CmTrainer(Moduler):
             loss = tf.losses.mean_squared_error(y_, y)
             optimizer = tf.train.AdamOptimizer().minimize(loss, name="optimizer")
 
+            tf.summary.scalar('loss', loss)
+
         return batchSize, keepProb, x, y_, y, loss, optimizer
 
     def __constructFeatureMapScope(self, batchSize, x, ff3dShape, fvLen, learnDayCnt):
@@ -158,9 +158,22 @@ class CmTrainer(Moduler):
         ):
             return tf.nn.max_pool3d(x, ksize, strides, padding, name=name, )
 
+        def addFf2d2summary(x, imageNamePrefix):
+            depth = x.get_shape()[1].value
+            channels = x.get_shape()[4].value
+            for depthNo in xrange(depth):
+                for channelNo in xrange(channels):
+                    # FIXME(20180730) covered old images with the same name
+                    image = x[:, depthNo:depthNo + 1, :, :, channelNo:channelNo + 1]
+                    image = tf.reshape(image, [-1] + map(lambda _: _.value, image.get_shape()[2:]))
+                    imageName = '%s-%d-%d' % (imageNamePrefix, depthNo, channelNo,)
+                    tf.summary.image(imageName, image)
+
         with tf.name_scope('internalInput') as _:
             ff3d = tf.reshape(x, [batchSize * learnDayCnt] + ff3dShape + [1], name="ff3d")
             out0 = ff3d
+
+            addFf2d2summary(ff3d, "ff3d")
 
         with tf.name_scope('C1') as _:
             _in = out0
@@ -178,6 +191,10 @@ class CmTrainer(Moduler):
 
             out = _convRs
 
+            addFf2d2summary(out, "image")
+            tf.summary.histogram('weight', _weight)
+            tf.summary.histogram('bia', _bia)
+
         with tf.name_scope('S2') as _:
             _in = out
 
@@ -185,6 +202,8 @@ class CmTrainer(Moduler):
                 _in, [1] + poolShape + [1], strides=[1] + poolStrides + [1], name='poolRs', )
 
             out = _poolRs
+
+            addFf2d2summary(out, "image")
 
         with tf.name_scope('C3') as _:
             _in = out
@@ -202,6 +221,10 @@ class CmTrainer(Moduler):
 
             out = _convRs
 
+            addFf2d2summary(out, "image")
+            tf.summary.histogram('weight', _weight)
+            tf.summary.histogram('bia', _bia)
+
         with tf.name_scope('S4') as _:
             _in = out
 
@@ -209,6 +232,8 @@ class CmTrainer(Moduler):
                 _in, [1] + poolShape + [1], strides=[1] + poolStrides + [1], name='poolRs', )
 
             out = _poolRs
+
+            addFf2d2summary(out, "image")
 
         with tf.name_scope('C5') as _:
             _in = out
@@ -226,6 +251,10 @@ class CmTrainer(Moduler):
 
             out = _convRs
 
+            addFf2d2summary(out, "image")
+            tf.summary.histogram('weight', _weight)
+            tf.summary.histogram('bia', _bia)
+
         with tf.name_scope('F6') as _:
             _in = out
             _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
@@ -239,6 +268,9 @@ class CmTrainer(Moduler):
 
             out = _fcRs
 
+            tf.summary.histogram('weight', _weight)
+            tf.summary.histogram('bia', _bia)
+
         with tf.name_scope('internalOutput') as _:
             _in = out
             _inWidth = _in.get_shape()[1].value
@@ -248,6 +280,9 @@ class CmTrainer(Moduler):
             _bia = biaVar([_outWidth], name='bia', )
             fv = tf.add(tf.matmul(_in, _weight), _bia, name='fv', )
 
+            tf.summary.histogram('weight', _weight)
+            tf.summary.histogram('bia', _bia)
+
         return fv
 
     def __constructFeaturePredictScope(self, batchSize, fv, fvLen, learnDayCnt):
@@ -256,7 +291,16 @@ class CmTrainer(Moduler):
         def lstmCell(lstmSize):
             return tf.contrib.rnn.BasicLSTMCell(lstmSize)
 
+        # TODO(20180729) impl
+        def addVec2summary(vec, vecName):
+            # FIXME(20180730) covered old images with the same name
+            vecLen = vec.shape[1].value
+            vec = tf.reshape(vec, [-1] + [1, vecLen, 1])
+            tf.summary.image(vecName, vec)
+
         with tf.name_scope('internalInput') as _:
+            addVec2summary(fv, "historyFv")
+
             _mFv = tf.transpose(tf.reshape(fv, [batchSize] + [learnDayCnt, fvLen]), perm=[0, 2, 1], name="mFv")
 
         with tf.name_scope('lstmCells') as _:
@@ -269,13 +313,15 @@ class CmTrainer(Moduler):
             _output = tf.reshape(_output, [-1] + [fvLen * lstmSize])
             _fpWeight = tf.Variable(tf.truncated_normal([fvLen * lstmSize, fvLen], stddev=0.01))
             _fpBia = tf.zeros([fvLen])
-            predictFV = tf.add(tf.matmul(_output, _fpWeight), _fpBia, name="predictFV")
+            predictFv = tf.add(tf.matmul(_output, _fpWeight), _fpBia, name="predictFv")
 
-        return predictFV
+            addVec2summary(fv, "predictFv")
 
-    class Trainer(object):
+        return predictFv
+
+    class _Trainer(object):
         def __init__(self, optimizer):
-            super(CmTrainer.Trainer, self).__init__()
+            super(CmTrainer._Trainer, self).__init__()
             self.optimizer = optimizer
 
         def train(
@@ -288,8 +334,8 @@ class CmTrainer(Moduler):
         ):
             optimizer = self.optimizer
 
-            # summaries = tf.summary.merge_all()
-            # summaryWriter = tf.summary.FileWriter(logdir=summaryDir, graph=sess.graph)
+            summaries = tf.summary.merge_all()
+            summaryWriter = tf.summary.FileWriter(logdir=summaryDir, graph=sess.graph)
 
             sess.run(tf.global_variables_initializer())
             for stopNo in xrange(iteration):
@@ -315,15 +361,15 @@ class CmTrainer(Moduler):
                             x: trainCmBatch.learnMFf3ds, y_: trainCmBatch.predictTbs, }
                 optimizer.run(feed_dict=feedDict, session=sess)
                 # summarize
-                # summariesV = summaries.eval(feed_dict=feedDict, session=sess)
-                # summaryWriter.add_summary(summariesV, global_step=stopNo)
+                summariesV = summaries.eval(feed_dict=feedDict, session=sess)
+                summaryWriter.add_summary(summariesV, global_step=stopNo)
 
-                # summaryWriter.close()
+            summaryWriter.close()
 
-    class Evaluator(object):
+    class _Evaluator(object):
 
         def __init__(self, loss, ):
-            super(CmTrainer.Evaluator, self).__init__()
+            super(CmTrainer._Evaluator, self).__init__()
             self.loss = loss
 
         def evaluate(
@@ -334,11 +380,11 @@ class CmTrainer(Moduler):
         ):
             feedDict = {batchSize: cmData.exampleCnt, keepProb: 1.0, x: cmData.learnMFf3ds, y_: cmData.predictTbs, }
             lossV = self.loss.eval(feed_dict=feedDict, session=sess)  # v means value
-            return CmTrainer.Evaluator.Result(cmData.exampleCnt, lossV, )
+            return CmTrainer._Evaluator.Result(cmData.exampleCnt, lossV, )
 
         class Result(object):
             def __init__(self, exampleCnt, lossV, ):
-                super(CmTrainer.Evaluator.Result, self).__init__()
+                super(CmTrainer._Evaluator.Result, self).__init__()
                 self.lossV = lossV
                 self.exampleCnt = exampleCnt
 

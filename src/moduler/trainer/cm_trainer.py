@@ -9,6 +9,8 @@ from src.moduler.moduler import Moduler
 
 
 class CmTrainer(Moduler):
+    SUMMARIZE_IMAGE = False
+
     def __init__(
             self,
             trainCmData=None, testCmData=None,
@@ -164,6 +166,8 @@ class CmTrainer(Moduler):
             return tf.nn.max_pool3d(x, ksize, strides, padding, name=name, )
 
         def addFf2d2summary(x, imageNamePrefix):
+            if not CmTrainer.SUMMARIZE_IMAGE:
+                return
             depth = x.get_shape()[1].value
             channels = x.get_shape()[4].value
             for depthNo in xrange(depth):
@@ -298,6 +302,8 @@ class CmTrainer(Moduler):
 
         # TODO(20180729) impl
         def addVec2summary(vec, vecName):
+            if not CmTrainer.SUMMARIZE_IMAGE:
+                return
             # FIXME(20180730) covered old images with the same name
             vecLen = vec.shape[1].value
             vec = tf.reshape(vec, [-1] + [1, vecLen, 1])

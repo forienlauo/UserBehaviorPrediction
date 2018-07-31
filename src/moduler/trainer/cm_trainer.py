@@ -44,9 +44,7 @@ class CmTrainer(Moduler):
 
     def run(self):
         self.__init()
-        batchSize, keepProb, x, y_, y, loss, optimizer = self.__construct()
-        trainer = CmTrainer._Trainer(optimizer)
-        evaluator = CmTrainer._Evaluator(loss)
+        runConf, runInput, trainer, evaluator = self.__construct()
 
         if self.gpuNos is not None:
             assert self.gpuMemFraction is not None
@@ -63,10 +61,10 @@ class CmTrainer(Moduler):
 
         logging.info("start to train.")
         with tf.Session(config=config) as sess:
+            runConf.set(self.batchSizeConf, self.keepProbConf)
             trainer.train(
                 sess, self.summaryDir,
-                batchSize, keepProb, x, y_,
-                self.batchSizeConf, self.keepProbConf,
+                runConf, runInput,
                 self.trainCmData, self.iteration, self.printProgressPerStepCnt,
                 self.testCmData, evaluator,
             )
@@ -76,7 +74,7 @@ class CmTrainer(Moduler):
             logging.info("start to evaluate.")
             evaluate_result = evaluator.evaluate(
                 sess,
-                batchSize, keepProb, x, y_,
+                runConf, runInput,
                 self.testCmData,
             )
             logging.info("final evaluate_result: %s" % (evaluate_result,))
@@ -94,10 +92,14 @@ class CmTrainer(Moduler):
             batchSize = tf.placeholder(tf.int32, shape=[], name="batchSize")
             keepProb = tf.placeholder(tf.float32, name="keepProb")
 
+            runConf = CmTrainer._RunConf(batchSize, keepProb)
+
         with tf.name_scope('input') as _:
             # TODO(20180722) assert batchSize == x.shape[0] and batchSize == y_.shape[0]
             x = tf.placeholder(tf.float32, shape=[None] + ([learnDayCnt] + ff3dShape), name='x')
             y_ = tf.placeholder(tf.float32, shape=[None] + [1], name="y_")
+
+            runInput = CmTrainer._RunInput(x, y_)
 
         with tf.name_scope('featureMap') as _:
             fv = self.__constructFeatureMapScope(batchSize, x, ff3dShape, fvLen, learnDayCnt)
@@ -116,11 +118,14 @@ class CmTrainer(Moduler):
         with tf.name_scope('optimize') as _:
             # TODO(20180722) define name of loss
             loss = tf.losses.mean_squared_error(y_, y)
-            optimizer = tf.train.AdamOptimizer().minimize(loss, name="optimizer")
+            optimize = tf.train.AdamOptimizer().minimize(loss, name="optimize")
 
             tf.summary.scalar('loss', loss)
 
-        return batchSize, keepProb, x, y_, y, loss, optimizer
+            trainer = CmTrainer._Trainer(optimize)
+            evaluator = CmTrainer._Evaluator(loss)
+
+        return runConf, runInput, trainer, evaluator
 
     def __constructFeatureMapScope(self, batchSize, x, ff3dShape, fvLen, learnDayCnt):
         # # a simple impl
@@ -319,47 +324,69 @@ class CmTrainer(Moduler):
 
         return predictFv
 
+    class _RunConf(object):
+        def __init__(self, batchSize, keepProb):
+            super(CmTrainer._RunConf, self).__init__()
+            self.batchSize = batchSize
+            self.keepProb = keepProb
+
+            self.batchSizeConf = None
+            self.keepProbConf = None
+
+        def set(self, batchSizeConf, keepProbConf):
+            self.batchSizeConf = batchSizeConf
+            self.keepProbConf = keepProbConf
+
+        def clear(self):
+            self.batchSizeConf = None
+            self.keepProbConf = None
+
+    class _RunInput(object):
+        def __init__(self, x, y_):
+            super(CmTrainer._RunInput, self).__init__()
+            self.x = x
+            self.y_ = y_
+
     class _Trainer(object):
-        def __init__(self, optimizer):
+        def __init__(self, optimize):
             super(CmTrainer._Trainer, self).__init__()
-            self.optimizer = optimizer
+            self.optimize = optimize
 
         def train(
                 self,
                 sess, summaryDir,
-                batchSize, keepProb, x, y_,
-                batchSizeConf, keepProbConf,
+                runConf, runInput,
                 trainCmData, iteration, printProgressPerStepCnt,
                 testCmData, evaluator,
         ):
-            optimizer = self.optimizer
+            optimize = self.optimize
 
             summaries = tf.summary.merge_all()
             summaryWriter = tf.summary.FileWriter(logdir=summaryDir, graph=sess.graph)
 
             sess.run(tf.global_variables_initializer())
             for stopNo in xrange(iteration):
-                trainCmBatch = trainCmData.randomSampleBatch(batchSizeConf)
+                trainCmBatch = trainCmData.randomSampleBatch(runConf.batchSizeConf)
                 # print progress
                 if stopNo % printProgressPerStepCnt == 0:
                     trainEvlRs = evaluator.evaluate(
                         sess,
-                        batchSize, keepProb, x, y_,
+                        runConf, runInput,
                         trainCmBatch,
                     )
-                    testCmBatch = testCmData.randomSampleBatch(batchSizeConf)
+                    testCmBatch = testCmData.randomSampleBatch(runConf.batchSizeConf)
                     testEvlRs = evaluator.evaluate(
                         sess,
-                        batchSize, keepProb, x, y_,
+                        runConf, runInput,
                         testCmBatch,
                     )
                     logging.info(
                         "step %d before optimizing, training evaluate result: %s, testing evaluate result: %s"
                         % (stopNo, trainEvlRs, testEvlRs))
                 # train
-                feedDict = {batchSize: batchSizeConf, keepProb: keepProbConf,
-                            x: trainCmBatch.learnMFf3ds, y_: trainCmBatch.predictTbs, }
-                optimizer.run(feed_dict=feedDict, session=sess)
+                feedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: runConf.keepProbConf,
+                            runInput.x: trainCmBatch.learnMFf3ds, runInput.y_: trainCmBatch.predictTbs, }
+                optimize.run(feed_dict=feedDict, session=sess)
                 # summarize
                 summariesV = summaries.eval(feed_dict=feedDict, session=sess)
                 summaryWriter.add_summary(summariesV, global_step=stopNo)
@@ -375,10 +402,11 @@ class CmTrainer(Moduler):
         def evaluate(
                 self,
                 sess,
-                batchSize, keepProb, x, y_,
+                runConf, runInput,
                 cmData,
         ):
-            feedDict = {batchSize: cmData.exampleCnt, keepProb: 1.0, x: cmData.learnMFf3ds, y_: cmData.predictTbs, }
+            feedDict = {runConf.batchSize: cmData.exampleCnt, runConf.keepProb: 1.0,
+                        runInput.x: cmData.learnMFf3ds, runInput.y_: cmData.predictTbs, }
             lossV = self.loss.eval(feed_dict=feedDict, session=sess)  # v means value
             return CmTrainer._Evaluator.Result(cmData.exampleCnt, lossV, )
 

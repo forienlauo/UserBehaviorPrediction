@@ -101,46 +101,37 @@ class CmTrainer(Moduler):
             x = tf.placeholder(tf.float32, shape=[None] + ([learnDayCnt] + ff3dShape), name='x')
             y_ = tf.placeholder(tf.float32, shape=[None] + [1], name="y_")
 
+            tf.summary.histogram("realX", x)
+            tf.summary.histogram("realY", y_)
+
             runInput = CmTrainer._RunInput(x, y_)
 
         with tf.name_scope('featureMap') as _:
             fv = self.__constructFeatureMapScope(batchSize, x, ff3dShape, fvLen, learnDayCnt)
 
+            tf.summary.histogram("realFv", fv)
+
         with tf.name_scope('featurePredict') as _:
             predictFv = self.__constructFeaturePredictScope(batchSize, fv, fvLen, learnDayCnt)
 
+            tf.summary.histogram("predictFvBeforeDropout", predictFv)
+
         with tf.name_scope('dropout') as _:
             predictFv = tf.nn.dropout(predictFv, keepProb)
+            tf.summary.histogram("predictFvAfterDropout", predictFv)
 
         with tf.name_scope('targetBehaviorResolve') as _:
-            _tbrWeight = tf.Variable(tf.truncated_normal([fvLen, 1], stddev=0.01))
-            _tbrBia = tf.zeros([1])
-            y = tf.add(tf.matmul(predictFv, _tbrWeight), _tbrBia, name="y")
+            y = self.__constructtargetBehaviorResolve(predictFv, fvLen)
+
+            tf.summary.histogram("predictY", y)
 
         with tf.name_scope('optimize') as _:
-            # TODO(20180722) define name of lossMse
-            # lossMse = tf.losses.mean_squared_error(y_, y)
-            _batchSizeF = tf.cast(batchSize, tf.float32)
-            _lossSe = tf.square(tf.subtract(y, y_))  # squared error
-            lossMse = tf.div(tf.reduce_sum(_lossSe), _batchSizeF, name="lossMse")  # mean squared error
-            lossRmse = tf.sqrt(lossMse, name="lossRmse")  # root mean squared error
-            _lossAe = tf.abs(tf.subtract(y, y_))  # abstract error
-            lossMae = tf.div(tf.reduce_sum(_lossAe), _batchSizeF, name="lossMae")  # mean abstract error
-            _lossSr = tf.square(tf.subtract(tf.reduce_mean(y), y_))  # squared residual
-            lossR2 = tf.subtract(tf.ones([]), tf.div(tf.reduce_sum(_lossSe), tf.reduce_sum(_lossSr)),
-                                 name="lossR2")  # r2
-            lossmRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossmRrmse")
+            lossMse, lossRmse, lossMae, lossR2, lossRrmse = self.__constructLoss(y, y_, batchSize)
 
-            optimize = tf.train.AdamOptimizer().minimize(lossMse, name="optimize")
-
-            tf.summary.scalar('lossMse', lossMse)
-            tf.summary.scalar('lossRmse', lossRmse)
-            tf.summary.scalar('lossMae', lossMae)
-            tf.summary.scalar('lossR2', lossR2)
-            tf.summary.scalar('lossmRrmse', lossmRrmse)
+            with tf.name_scope("internalOptimize") as _:
+                optimize = tf.train.AdamOptimizer().minimize(lossMse, name="optimize")
 
             evaluator = CmTrainer._Evaluator(lossMse)
-
             trainer = CmTrainer._Trainer(optimize)
 
         return runConf, runInput, trainer, evaluator
@@ -338,13 +329,52 @@ class CmTrainer(Moduler):
 
         with tf.name_scope('internalOutput') as _:
             _output = tf.reshape(_output, [-1] + [fvLen * lstmSize])
-            _fpWeight = tf.Variable(tf.truncated_normal([fvLen * lstmSize, fvLen], stddev=0.01))
-            _fpBia = tf.zeros([fvLen])
-            predictFv = tf.add(tf.matmul(_output, _fpWeight), _fpBia, name="predictFv")
+            _weight = tf.Variable(tf.truncated_normal([fvLen * lstmSize, fvLen], stddev=0.01))
+            _bia = tf.zeros([fvLen])
+            predictFv = tf.add(tf.matmul(_output, _weight), _bia, name="predictFv")
 
             addVec2summary(fv, "predictFv")
+            tf.summary.histogram('weight', _weight)
+            tf.summary.histogram('bia', _bia)
 
         return predictFv
+
+    def __constructLoss(self, y, y_, batchSize):
+        # cannot define name in the way below
+        # lossMse = tf.losses.mean_squared_error(y_, y)
+        _batchSizeF = tf.cast(batchSize, tf.float32)
+        with tf.name_scope("lossMse") as _:
+            _lossSe = tf.square(tf.subtract(y, y_))  # squared error
+            lossMse = tf.div(tf.reduce_sum(_lossSe), _batchSizeF, name="lossMse")  # mean squared error
+        with tf.name_scope("lossRmse") as _:
+            lossRmse = tf.sqrt(lossMse, name="lossRmse")  # root mean squared error
+        with tf.name_scope("lossMae") as _:
+            _lossAe = tf.abs(tf.subtract(y, y_))  # abstract error
+            lossMae = tf.div(tf.reduce_sum(_lossAe), _batchSizeF, name="lossMae")  # mean abstract error
+        with tf.name_scope("lossR2") as _:
+            _lossSr = tf.square(tf.subtract(tf.reduce_mean(y), y_))  # squared residual
+            lossR2 = tf.subtract(tf.ones([]), tf.div(tf.reduce_sum(_lossSe), tf.reduce_sum(_lossSr)),
+                                 name="lossR2")  # r2
+        with tf.name_scope("lossRrmse") as _:
+            lossRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossRrmse")
+
+        tf.summary.scalar('lossMse', lossMse)
+        tf.summary.scalar('lossRmse', lossRmse)
+        tf.summary.scalar('lossMae', lossMae)
+        tf.summary.scalar('lossR2', lossR2)
+        tf.summary.scalar('lossRrmse', lossRrmse)
+
+        return lossMse, lossRmse, lossMae, lossR2, lossRrmse
+
+    def __constructtargetBehaviorResolve(self, predictFv, fvLen):
+        _weight = tf.Variable(tf.truncated_normal([fvLen, 1], stddev=0.01))
+        _bia = tf.zeros([1])
+        y = tf.add(tf.matmul(predictFv, _weight), _bia, name="y")
+
+        tf.summary.histogram("weight", _weight)
+        tf.summary.histogram("bia", _bia)
+
+        return y
 
     class _RunConf(object):
         def __init__(self, batchSize, keepProb):

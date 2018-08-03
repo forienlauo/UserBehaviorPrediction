@@ -51,7 +51,10 @@ class CmTrainer(Moduler):
         if self.gpuNos is not None:
             assert self.gpuMemFraction is not None
             os.environ["CUDA_VISIBLE_DEVICES"] = self.gpuNos
-            gpuOptions = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpuMemFraction)
+            gpuOptions = tf.GPUOptions(
+                per_process_gpu_memory_fraction=self.gpuMemFraction,
+                allow_growth=True,
+            )
             config = tf.ConfigProto(gpu_options=gpuOptions)
         else:
             assert self.cpuCoreCnt is not None
@@ -419,6 +422,9 @@ class CmTrainer(Moduler):
             summaries = tf.summary.merge_all()
             summaryWriter = tf.summary.FileWriter(logdir=summaryDir, graph=sess.graph)
 
+            runOptions = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            runMetadata = tf.RunMetadata()
+
             sess.run(tf.global_variables_initializer())
             for stopNo in xrange(iteration):
                 trainCmBatch = trainCmData.randomSampleBatch(runConf.batchSizeConf)
@@ -441,7 +447,7 @@ class CmTrainer(Moduler):
                 # train
                 feedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: runConf.keepProbConf,
                             runInput.x: trainCmBatch.learnMFf3ds, runInput.y_: trainCmBatch.predictTbs, }
-                optimize.run(feed_dict=feedDict, session=sess)
+                sess.run(optimize, feed_dict=feedDict, options=runOptions, run_metadata=runMetadata)
                 # summarize
                 summariesV = summaries.eval(feed_dict=feedDict, session=sess)
                 summaryWriter.add_summary(summariesV, global_step=stopNo)

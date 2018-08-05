@@ -129,12 +129,13 @@ class CmTrainer(Moduler):
             tf.summary.histogram("predictY", y)
 
         with tf.name_scope('optimize') as _:
-            lossMse, lossRmse, lossMae, lossR2, lossRrmse = self.__constructLoss(y, y_, batchSize)
+            lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape = self.__constructLoss(y, y_, batchSize)
 
             with tf.name_scope("internalOptimize") as _:
+                logging.info("optimize by lossMse")
                 optimize = tf.train.AdamOptimizer().minimize(lossMse, name="optimize")
 
-            evaluator = CmTrainer._Evaluator(lossMse)
+            evaluator = CmTrainer._Evaluator(lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape)
             trainer = CmTrainer._Trainer(optimize)
 
         return runConf, runInput, trainer, evaluator
@@ -361,7 +362,8 @@ class CmTrainer(Moduler):
         with tf.name_scope("lossRrmse") as _:
             lossRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossRrmse")
         with tf.name_scope("lossMape") as _:
-            lossMape = tf.div(tf.reduce_sum(tf.abs(tf.div(tf.subtract(y, y_), y_))), _batchSizeF, name="lossMape")
+            lossMape = tf.div(tf.reduce_sum(tf.div(_lossAe, tf.add(y_, tf.ones_like(y_)))), _batchSizeF,
+                              name="lossMape")
 
         tf.summary.scalar('lossMse', lossMse)
         tf.summary.scalar('lossRmse', lossRmse)
@@ -370,7 +372,7 @@ class CmTrainer(Moduler):
         tf.summary.scalar('lossRrmse', lossRrmse)
         tf.summary.scalar('lossMape', lossMape)
 
-        return lossMse, lossRmse, lossMae, lossR2, lossRrmse
+        return lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape
 
     def __constructtargetBehaviorResolve(self, predictFv, fvLen):
         _weight = tf.Variable(tf.truncated_normal([fvLen, 1], stddev=0.01))
@@ -456,9 +458,17 @@ class CmTrainer(Moduler):
 
     class _Evaluator(object):
 
-        def __init__(self, loss, ):
+        def __init__(
+                self,
+                lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape,
+        ):
             super(CmTrainer._Evaluator, self).__init__()
-            self.loss = loss
+            self.lossMse = lossMse
+            self.lossRmse = lossRmse
+            self.lossMae = lossMae
+            self.lossR2 = lossR2
+            self.lossRrmse = lossRrmse
+            self.lossMape = lossMape
 
         def evaluate(
                 self,
@@ -468,14 +478,34 @@ class CmTrainer(Moduler):
         ):
             feedDict = {runConf.batchSize: cmData.exampleCnt, runConf.keepProb: 1.0,
                         runInput.x: cmData.learnMFf3ds, runInput.y_: cmData.predictTbs, }
-            lossV = self.loss.eval(feed_dict=feedDict, session=sess)  # v means value
-            return CmTrainer._Evaluator.Result(cmData.exampleCnt, lossV, )
+            lossMseV, lossRmseV, lossMaeV, lossR2V, lossRrmseV, lossMapeV = sess.run(
+                [self.lossMse, self.lossRmse, self.lossMae, self.lossR2, self.lossRrmse, self.lossMape],
+                feed_dict=feedDict, )
+            return CmTrainer._Evaluator.Result(
+                cmData.exampleCnt,
+                lossMseV, lossRmseV, lossMaeV, lossR2V, lossRrmseV, lossMapeV,
+            )
 
         class Result(object):
-            def __init__(self, exampleCnt, lossV, ):
+            def __init__(
+                    self,
+                    exampleCnt,
+                    lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape,
+            ):
                 super(CmTrainer._Evaluator.Result, self).__init__()
-                self.lossV = lossV
                 self.exampleCnt = exampleCnt
 
+                self.lossMse = lossMse
+                self.lossRmse = lossRmse
+                self.lossMae = lossMae
+                self.lossR2 = lossR2
+                self.lossRrmse = lossRrmse
+                self.lossMape = lossMape
+
             def __str__(self):
-                return "result {lossV: %.6f, example_cnt: %d}" % (self.lossV, self.exampleCnt,)
+                return (
+                    "result {example_cnt: %d,"
+                    " lossMse: %.6f, lossRmse: %.6f, lossMae: %.6f, lossR2: %.6f, lossRrmse: %.6f, lossMape: %.6f}"
+                    % (self.exampleCnt,
+                       self.lossMse, self.lossRmse, self.lossMae, self.lossR2, self.lossRrmse, self.lossMape,)
+                )

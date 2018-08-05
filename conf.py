@@ -20,6 +20,15 @@ logLevel = LogLevel.DEBUG.value
 __LOG_FORMAT = '%(levelname)5s %(asctime)s [%(filename)s line:%(lineno)d] %(message)s'
 logging.basicConfig(format=__LOG_FORMAT, level=logLevel)
 
+
+class TfLogLevel(Enum):
+    DEBUG = "1"
+    WARN = "2"
+    ERROR = "3"
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = TfLogLevel.ERROR.value
+
 wkdir = os.path.join(PROJECT_DIR, "tmp", str(int(time.time())))
 
 # special file/dir suffix

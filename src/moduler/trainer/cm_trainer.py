@@ -362,7 +362,7 @@ class CmTrainer(Moduler):
         with tf.name_scope("lossRrmse") as _:
             lossRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossRrmse")
         with tf.name_scope("lossMape") as _:
-            lossMape = tf.div(tf.reduce_sum(tf.div(_lossAe, tf.add(y_, tf.ones_like(y_)))), _batchSizeF,
+            lossMape = tf.div(tf.reduce_sum(tf.div(_lossAe, y_ + 0.01)), _batchSizeF,
                               name="lossMape")
 
         tf.summary.scalar('lossMse', lossMse)

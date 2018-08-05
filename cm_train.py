@@ -56,6 +56,7 @@ def __parseArgs():
 
 
 def main():
+    logging.info("argv: %s" % " ".join(sys.argv))
     options = __parseArgs()
 
     featureFrame3dDir = options.featureFrame3dDir
@@ -133,6 +134,7 @@ def main():
 
 
 def __init(logLevel, wkdir, force):
+    # useless
     conf.logLevel = conf.LogLevel[logLevel]
     conf.FeatureFrame3dDict.init()
 

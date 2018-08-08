@@ -112,16 +112,17 @@ class CmTrainer(Moduler):
         with tf.name_scope('featureMap') as _:
             fv = self.__constructFeatureMapScope(batchSize, x, ff3dShape, fvLen, learnDayCnt)
 
-            tf.summary.histogram("realFv", fv)
+            tf.summary.histogram("realFvBeforeDropout", fv)
+
+        with tf.name_scope('dropout') as _:
+            fv = tf.nn.dropout(fv, keepProb)
+
+            tf.summary.histogram("realFvAfterDropout", fv)
 
         with tf.name_scope('featurePredict') as _:
             predictFv = self.__constructFeaturePredictScope(batchSize, fv, fvLen, learnDayCnt)
 
-            tf.summary.histogram("predictFvBeforeDropout", predictFv)
-
-        with tf.name_scope('dropout') as _:
-            predictFv = tf.nn.dropout(predictFv, keepProb)
-            tf.summary.histogram("predictFvAfterDropout", predictFv)
+            tf.summary.histogram("predictFv", predictFv)
 
         with tf.name_scope('targetBehaviorResolve') as _:
             y = self.__constructtargetBehaviorResolve(predictFv, fvLen)

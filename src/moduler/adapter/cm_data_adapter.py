@@ -168,7 +168,11 @@ class CmData(object):
         return trainCmData, testCmData
 
     def randomSampleBatch(self, batchSize):
-        sExpIdxs = np.random.choice(self.exampleCnt, batchSize, replace=False)  # s means shuffled
+        sampleCnt = batchSize
+        if self.exampleCnt <= sampleCnt:
+            logging.warn("no need to sample less examples(%d from %d)" % (sampleCnt, self.exampleCnt))
+            sampleCnt = self.exampleCnt
+        sExpIdxs = np.random.choice(self.exampleCnt, sampleCnt, replace=False)  # s means shuffled
         cmBatch = self.__take(sExpIdxs)
         return cmBatch
 

@@ -202,9 +202,7 @@ class CmTrainer(Moduler):
             _outChannels = convCnts[0]
 
             _weight = weightVar(convShape + [_inChannels, _outChannels], name='weight', )
-            tf.summary.histogram('weight', _weight)
             _bia = biaVar([_outChannels], name='bia', )
-            tf.summary.histogram('bia', _bia)
             # TODO(20180724) split conv node and activate node
             _convRs = tf.nn.relu(
                 conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
@@ -233,9 +231,7 @@ class CmTrainer(Moduler):
 
             _weight = weightVar(
                 convShape + [_inChannels, _outChannels], name='weight', )
-            tf.summary.histogram('weight', _weight)
             _bia = biaVar([_outChannels], name='bia', )
-            tf.summary.histogram('bia', _bia)
             _convRs = tf.nn.relu(
                 conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
 
@@ -263,9 +259,7 @@ class CmTrainer(Moduler):
 
             _weight = weightVar(
                 convShape + [_inChannels, _outChannels], name='weight', )
-            tf.summary.histogram('weight', _weight)
             _bia = biaVar([_outChannels], name='bia', )
-            tf.summary.histogram('bia', _bia)
             _convRs = tf.nn.relu(
                 conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
 

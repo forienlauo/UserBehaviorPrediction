@@ -115,7 +115,7 @@ class CmTrainer(Moduler):
             tf.summary.histogram("realFvBeforeDropout", fv)
 
         with tf.name_scope('dropout') as _:
-            fv = tf.nn.dropout(fv, keepProb)
+            fv = tf.layers.dropout(fv, 1.0 - keepProb)
 
             tf.summary.histogram("realFvAfterDropout", fv)
 

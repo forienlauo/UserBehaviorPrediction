@@ -8,7 +8,7 @@ import conf
 from src.moduler.moduler import Moduler
 
 
-class CmTrainer(Moduler):
+class CnnTrainer(Moduler):
     SUMMARIZE_IMAGE = False
 
     def __init__(
@@ -16,12 +16,11 @@ class CmTrainer(Moduler):
             trainData=None, testData=None,
             wkdir=None,
             convShape=None, convStrides=None, poolShape=None, poolStrides=None, convCnts=None,
-            lstmSize=None,
             batchSizeConf=None, keepProbConf=None,
             cpuCoreCnt=None, gpuNos=None, gpuMemFraction=None,
             iteration=None, printProgressPerStepCnt=None,
     ):
-        super(CmTrainer, self).__init__()
+        super(CnnTrainer, self).__init__()
         self.trainData = trainData
         self.testData = testData
         self.wkdir = wkdir
@@ -32,8 +31,6 @@ class CmTrainer(Moduler):
         self.poolShape = poolShape
         self.poolStrides = poolStrides
         self.convCnts = convCnts
-
-        self.lstmSize = lstmSize
 
         self.batchSizeConf = batchSizeConf
         self.keepProbConf = keepProbConf
@@ -97,7 +94,7 @@ class CmTrainer(Moduler):
             batchSize = tf.placeholder(tf.int32, shape=[], name="batchSize")
             keepProb = tf.placeholder(tf.float32, name="keepProb")
 
-            runConf = CmTrainer._RunConf(batchSize, keepProb)
+            runConf = CnnTrainer._RunConf(batchSize, keepProb)
 
         with tf.name_scope('input') as _:
             # TODO(20180722) assert batchSize == x.shape[0] and batchSize == y_.shape[0]
@@ -107,20 +104,15 @@ class CmTrainer(Moduler):
             tf.summary.histogram("realX", x)
             tf.summary.histogram("realY", y_)
 
-            runInput = CmTrainer._RunInput(x, y_)
+            runInput = CnnTrainer._RunInput(x, y_)
 
-        with tf.name_scope('featureMap') as _:
-            fv = self.__constructFeatureMapScope(batchSize, x, ff3dShape, fvLen, learnDayCnt)
+        with tf.name_scope('pureMap') as _:
+            predictFv = self.__constructPureMapScope(batchSize, x, ff3dShape, fvLen, learnDayCnt)
 
-            tf.summary.histogram("realFvBeforeDropout", fv)
+            tf.summary.histogram("predictFvBeforeDropout", predictFv)
 
         with tf.name_scope('dropout') as _:
-            fv = tf.layers.dropout(fv, 1.0 - keepProb)
-
-            tf.summary.histogram("realFvAfterDropout", fv)
-
-        with tf.name_scope('featurePredict') as _:
-            predictFv = self.__constructFeaturePredictScope(batchSize, fv, fvLen, learnDayCnt)
+            predictFv = tf.layers.dropout(predictFv, 1.0 - keepProb)
 
             tf.summary.histogram("predictFv", predictFv)
 
@@ -136,19 +128,12 @@ class CmTrainer(Moduler):
                 logging.info("optimize by lossMse")
                 optimize = tf.train.AdamOptimizer().minimize(lossMse, name="optimize")
 
-            evaluator = CmTrainer._Evaluator(lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape)
-            trainer = CmTrainer._Trainer(optimize)
+            evaluator = CnnTrainer._Evaluator(lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape)
+            trainer = CnnTrainer._Trainer(optimize)
 
         return runConf, runInput, trainer, evaluator
 
-    def __constructFeatureMapScope(self, batchSize, x, ff3dShape, fvLen, learnDayCnt):
-        # # a simple impl
-        # _elemCntPerFf3d = reduce(mul, ff3dShape)
-        # _v = tf.reshape(ff3d, [batchSize * learnDayCnt] + [_elemCntPerFf3d])
-        # _fmWeight = tf.Variable(tf.truncated_normal([_elemCntPerFf3d, fvLen], stddev=0.01))
-        # _fmBia = tf.zeros([fvLen])
-        # fv = tf.add(tf.matmul(_v, _fmWeight), _fmBia, name="fv")
-
+    def __constructPureMapScope(self, batchSize, x, ff3dShape, fvLen, learnDayCnt):
         convShape = self.convShape
         convStrides = self.convStrides
         poolShape = self.poolShape
@@ -178,7 +163,7 @@ class CmTrainer(Moduler):
             return tf.nn.max_pool3d(x, ksize, strides, padding, name=name, )
 
         def addFf2d2summary(x, imageNamePrefix):
-            if not CmTrainer.SUMMARIZE_IMAGE:
+            if not CnnTrainer.SUMMARIZE_IMAGE:
                 return
             depth = x.get_shape()[1].value
             channels = x.get_shape()[4].value
@@ -191,7 +176,8 @@ class CmTrainer(Moduler):
                     tf.summary.image(imageName, image)
 
         with tf.name_scope('internalInput') as _:
-            ff3d = tf.reshape(x, [batchSize * learnDayCnt] + ff3dShape + [1], name="ff3d")
+            newFf3dShape = [learnDayCnt * ff3dShape[0]] + ff3dShape[1:]
+            ff3d = tf.reshape(x, [batchSize] + newFf3dShape + [1], name="ff3d")
             out0 = ff3d
 
             addFf2d2summary(ff3d, "ff3d")
@@ -300,44 +286,6 @@ class CmTrainer(Moduler):
 
         return fv
 
-    def __constructFeaturePredictScope(self, batchSize, fv, fvLen, learnDayCnt):
-        lstmSize = self.lstmSize
-
-        def lstmCell(lstmSize):
-            return tf.contrib.rnn.BasicLSTMCell(lstmSize)
-
-        # TODO(20180729) impl
-        def addVec2summary(vec, vecName):
-            if not CmTrainer.SUMMARIZE_IMAGE:
-                return
-            # FIXME(20180730) covered old images with the same name
-            vecLen = vec.shape[1].value
-            vec = tf.reshape(vec, [-1] + [1, vecLen, 1])
-            tf.summary.image(vecName, vec)
-
-        with tf.name_scope('internalInput') as _:
-            addVec2summary(fv, "historyFv")
-
-            _mFv = tf.transpose(tf.reshape(fv, [batchSize] + [learnDayCnt, fvLen]), perm=[0, 2, 1], name="mFv")
-
-        with tf.name_scope('lstmCells') as _:
-            _cell = tf.contrib.rnn.MultiRNNCell([lstmCell(lstmSize) for _ in xrange(learnDayCnt)])
-            _initialState = _cell.zero_state(batchSize, tf.float32)
-            # _output: shape[None, fvLen, lstmSize]
-            _output, _final_state = tf.nn.dynamic_rnn(_cell, _mFv, initial_state=_initialState)
-
-        with tf.name_scope('internalOutput') as _:
-            _output = tf.reshape(_output, [-1] + [fvLen * lstmSize])
-            _weight = tf.Variable(tf.truncated_normal([fvLen * lstmSize, fvLen], stddev=0.01))
-            _bia = tf.zeros([fvLen])
-            predictFv = tf.add(tf.matmul(_output, _weight), _bia, name="predictFv")
-
-            addVec2summary(fv, "predictFv")
-            tf.summary.histogram('weight', _weight)
-            tf.summary.histogram('bia', _bia)
-
-        return predictFv
-
     def __constructLoss(self, y, y_, batchSize):
         # cannot define name in the way below
         # lossMse = tf.losses.mean_squared_error(y_, y)
@@ -381,7 +329,7 @@ class CmTrainer(Moduler):
 
     class _RunConf(object):
         def __init__(self, batchSize, keepProb):
-            super(CmTrainer._RunConf, self).__init__()
+            super(CnnTrainer._RunConf, self).__init__()
             self.batchSize = batchSize
             self.keepProb = keepProb
 
@@ -398,13 +346,13 @@ class CmTrainer(Moduler):
 
     class _RunInput(object):
         def __init__(self, x, y_):
-            super(CmTrainer._RunInput, self).__init__()
+            super(CnnTrainer._RunInput, self).__init__()
             self.x = x
             self.y_ = y_
 
     class _Trainer(object):
         def __init__(self, optimize):
-            super(CmTrainer._Trainer, self).__init__()
+            super(CnnTrainer._Trainer, self).__init__()
             self.optimize = optimize
 
         def train(
@@ -424,26 +372,26 @@ class CmTrainer(Moduler):
 
             sess.run(tf.global_variables_initializer())
             for stopNo in xrange(iteration):
-                trainCmBatch = trainData.randomSampleBatch(runConf.batchSizeConf)
+                trainCnnBatch = trainData.randomSampleBatch(runConf.batchSizeConf)
                 # print progress
                 if stopNo % printProgressPerStepCnt == 0:
                     trainEvlRs = evaluator.evaluate(
                         sess,
                         runConf, runInput,
-                        trainCmBatch,
+                        trainCnnBatch,
                     )
-                    testCmBatch = testData.randomSampleBatch(runConf.batchSizeConf)
+                    testCnnBatch = testData.randomSampleBatch(runConf.batchSizeConf)
                     testEvlRs = evaluator.evaluate(
                         sess,
                         runConf, runInput,
-                        testCmBatch,
+                        testCnnBatch,
                     )
                     logging.info(
                         "step %d before optimizing, training evaluate result: %s, testing evaluate result: %s"
                         % (stopNo, trainEvlRs, testEvlRs))
                 # train
                 feedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: runConf.keepProbConf,
-                            runInput.x: trainCmBatch.learnMFf3ds, runInput.y_: trainCmBatch.predictTbs, }
+                            runInput.x: trainCnnBatch.learnMFf3ds, runInput.y_: trainCnnBatch.predictTbs, }
                 sess.run(optimize, feed_dict=feedDict, options=runOptions, run_metadata=runMetadata)
                 # summarize
                 summariesV = summaries.eval(feed_dict=feedDict, session=sess)
@@ -457,7 +405,7 @@ class CmTrainer(Moduler):
                 self,
                 lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape,
         ):
-            super(CmTrainer._Evaluator, self).__init__()
+            super(CnnTrainer._Evaluator, self).__init__()
             self.lossMse = lossMse
             self.lossRmse = lossRmse
             self.lossMae = lossMae
@@ -476,7 +424,7 @@ class CmTrainer(Moduler):
             lossMseV, lossRmseV, lossMaeV, lossR2V, lossRrmseV, lossMapeV = sess.run(
                 [self.lossMse, self.lossRmse, self.lossMae, self.lossR2, self.lossRrmse, self.lossMape],
                 feed_dict=feedDict, )
-            return CmTrainer._Evaluator.Result(
+            return CnnTrainer._Evaluator.Result(
                 cmData.exampleCnt,
                 lossMseV, lossRmseV, lossMaeV, lossR2V, lossRrmseV, lossMapeV,
             )
@@ -487,7 +435,7 @@ class CmTrainer(Moduler):
                     exampleCnt,
                     lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape,
             ):
-                super(CmTrainer._Evaluator.Result, self).__init__()
+                super(CnnTrainer._Evaluator.Result, self).__init__()
                 self.exampleCnt = exampleCnt
 
                 self.lossMse = lossMse

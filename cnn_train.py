@@ -6,11 +6,11 @@ import shutil
 import sys
 
 import conf
-from src.moduler.adapter.cm_data_adapter import \
-    CmDataAdapter as DataAdapter, \
-    CmData as Data
-from src.moduler.trainer.cm_trainer import \
-    CmTrainer as Trainer
+from src.moduler.adapter.cnn_data_adapter import \
+    CnnDataAdapter as DataAdapter, \
+    CnnData as Data
+from src.moduler.trainer.cnn_trainer import \
+    CnnTrainer as Trainer
 
 
 def __parseArgs():
@@ -35,8 +35,6 @@ def __parseArgs():
                         help=u"shared pool strides[depth, height, width], dimensions separated by comma, supports only 3D pool")
     parser.add_argument("-ccs", "--convCnts", required=False, default="64,128,256",
                         help=u"ConvNeuron cnt s, separated by comma, supported only 3 conv layers")
-
-    parser.add_argument("-l", "--lstmSize", type=int, required=False, default=20, help=u"LSTMCell size")
 
     parser.add_argument("-b", "--batchSizeConf", type=int, required=False, default=20, help=u"batch size configured")
     parser.add_argument("-k", "--keepProbConf", type=float, required=False, default=0.5, help=u"keepProb configured")
@@ -73,8 +71,6 @@ def main():
     poolShape = map(int, str(options.poolShape).split(","))
     poolStrides = map(int, str(options.poolStrides).split(","))
     convCnts = map(int, str(options.convCnts).split(","))
-
-    lstmSize = options.lstmSize
 
     batchSizeConf = options.batchSizeConf
     keepProbConf = options.keepProbConf
@@ -124,7 +120,6 @@ def main():
         trainData=trainData, testData=testData,
         wkdir=wkdir,
         convShape=convShape, convStrides=convStrides, poolShape=poolShape, poolStrides=poolStrides, convCnts=convCnts,
-        lstmSize=lstmSize,
         batchSizeConf=batchSizeConf, keepProbConf=keepProbConf,
         cpuCoreCnt=cpuCoreCnt, gpuNos=gpuNos, gpuMemFraction=gpuMemFraction,
         iteration=iteration, printProgressPerStepCnt=printProgressPerStepCnt,

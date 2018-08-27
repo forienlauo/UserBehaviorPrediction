@@ -116,3 +116,5 @@ tmp.*
 MNIST_data/
 log/
 sample/
+nohup.out
+

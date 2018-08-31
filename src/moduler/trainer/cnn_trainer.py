@@ -365,39 +365,45 @@ class CnnTrainer(Moduler):
             optimize = self.optimize
 
             summaries = tf.summary.merge_all()
-            summaryWriter = tf.summary.FileWriter(logdir=summaryDir, graph=sess.graph)
+            trainSummaryWriter = tf.summary.FileWriter(logdir=os.path.join(summaryDir, "train"), graph=sess.graph)
+            testSummaryWriter = tf.summary.FileWriter(logdir=os.path.join(summaryDir, "test"), graph=sess.graph)
 
             runOptions = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             runMetadata = tf.RunMetadata()
 
             sess.run(tf.global_variables_initializer())
             for stopNo in xrange(iteration):
-                trainCnnBatch = trainData.randomSampleBatch(runConf.batchSizeConf)
+                trainBatch = trainData.randomSampleBatch(runConf.batchSizeConf)
+                trainFeedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: runConf.keepProbConf,
+                                 runInput.x: trainBatch.learnMFf3ds, runInput.y_: trainBatch.predictTbs, }
+                sess.run(optimize, feed_dict=trainFeedDict, options=runOptions, run_metadata=runMetadata)
+                trainSummariesV = summaries.eval(feed_dict=trainFeedDict, session=sess)
+                trainSummaryWriter.add_summary(trainSummariesV, global_step=stopNo)
+
+                testBatch = testData.randomSampleBatch(runConf.batchSizeConf)
+                testFeedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: 1.0,
+                                runInput.x: testBatch.learnMFf3ds, runInput.y_: testBatch.predictTbs, }
+                testSummariesV = summaries.eval(feed_dict=testFeedDict, session=sess)
+                testSummaryWriter.add_summary(testSummariesV, global_step=stopNo)
+
                 # print progress
                 if stopNo % printProgressPerStepCnt == 0:
                     trainEvlRs = evaluator.evaluate(
                         sess,
                         runConf, runInput,
-                        trainCnnBatch,
+                        trainBatch,
                     )
-                    testCnnBatch = testData.randomSampleBatch(runConf.batchSizeConf)
                     testEvlRs = evaluator.evaluate(
                         sess,
                         runConf, runInput,
-                        testCnnBatch,
+                        testBatch,
                     )
                     logging.info(
                         "step %d before optimizing, training evaluate result: %s, testing evaluate result: %s"
                         % (stopNo, trainEvlRs, testEvlRs))
-                # train
-                feedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: runConf.keepProbConf,
-                            runInput.x: trainCnnBatch.learnMFf3ds, runInput.y_: trainCnnBatch.predictTbs, }
-                sess.run(optimize, feed_dict=feedDict, options=runOptions, run_metadata=runMetadata)
-                # summarize
-                summariesV = summaries.eval(feed_dict=feedDict, session=sess)
-                summaryWriter.add_summary(summariesV, global_step=stopNo)
 
-            summaryWriter.close()
+            trainSummaryWriter.close()
+            testSummaryWriter.close()
 
     class _Evaluator(object):
 

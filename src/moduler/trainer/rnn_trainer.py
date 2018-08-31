@@ -69,13 +69,13 @@ class RnnTrainer(Moduler):
 
             # TODO(20180722) dump model
 
-            logging.info("start to evaluate.")
-            evaluate_result = evaluator.evaluate(
-                sess,
-                runConf, runInput,
-                self.testData,
-            )
-            logging.info("final evaluate_result: %s" % (evaluate_result,))
+            # logging.info("start to evaluate.")
+            # evaluate_result = evaluator.evaluate(
+            #     sess,
+            #     runConf, runInput,
+            #     self.testData,
+            # )
+            # logging.info("final evaluate_result: %s" % (evaluate_result,))
 
     def __init(self):
         os.mkdir(self.summaryDir)

@@ -142,26 +142,11 @@ class CmTrainer(Moduler):
         return runConf, runInput, trainer, evaluator
 
     def __constructFeatureMapScope(self, batchSize, x, ff3dShape, fvLen, learnDayCnt):
-        # # a simple impl
-        # _elemCntPerFf3d = reduce(mul, ff3dShape)
-        # _v = tf.reshape(ff3d, [batchSize * learnDayCnt] + [_elemCntPerFf3d])
-        # _fmWeight = tf.Variable(tf.truncated_normal([_elemCntPerFf3d, fvLen], stddev=0.01))
-        # _fmBia = tf.zeros([fvLen])
-        # fv = tf.add(tf.matmul(_v, _fmWeight), _fmBia, name="fv")
-
         convShape = self.convShape
         convStrides = self.convStrides
         poolShape = self.poolShape
         poolStrides = self.poolStrides
         convCnts = self.convCnts
-
-        def weightVar(shape, name=None, ):
-            initial = tf.truncated_normal(shape, stddev=0.1)
-            return tf.Variable(initial, name=name, )
-
-        def biaVar(shape, name=None, ):
-            initial = tf.constant(0.1, shape=shape)
-            return tf.Variable(initial, name=name, )
 
         def conv3d(
                 x, filter,
@@ -202,8 +187,8 @@ class CmTrainer(Moduler):
             _inChannels = _in.get_shape()[4].value
             _outChannels = convCnts[0]
 
-            _weight = weightVar(convShape + [_inChannels, _outChannels], name='weight', )
-            _bia = biaVar([_outChannels], name='bia', )
+            _weight = self.__weightVar(convShape + [_inChannels, _outChannels], name='weight', )
+            _bia = self.__biaVar([_outChannels], name='bia', )
             # TODO(20180724) split conv node and activate node
             _convRs = tf.nn.relu(
                 conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
@@ -230,9 +215,9 @@ class CmTrainer(Moduler):
             _inChannels = _in.get_shape()[4].value
             _outChannels = convCnts[1]
 
-            _weight = weightVar(
+            _weight = self.__weightVar(
                 convShape + [_inChannels, _outChannels], name='weight', )
-            _bia = biaVar([_outChannels], name='bia', )
+            _bia = self.__biaVar([_outChannels], name='bia', )
             _convRs = tf.nn.relu(
                 conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
 
@@ -258,9 +243,9 @@ class CmTrainer(Moduler):
             _inChannels = _in.get_shape()[4].value
             _outChannels = convCnts[2]
 
-            _weight = weightVar(
+            _weight = self.__weightVar(
                 convShape + [_inChannels, _outChannels], name='weight', )
-            _bia = biaVar([_outChannels], name='bia', )
+            _bia = self.__biaVar([_outChannels], name='bia', )
             _convRs = tf.nn.relu(
                 conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
 
@@ -276,8 +261,8 @@ class CmTrainer(Moduler):
             _inChannels = _in.get_shape()[4].value
             _outWidth = 1024
 
-            _weight = weightVar([_depth * _height * _width * _inChannels, _outWidth], name='weight', )
-            _bia = biaVar([_outWidth], name='bia', )
+            _weight = self.__weightVar([_depth * _height * _width * _inChannels, _outWidth], name='weight', )
+            _bia = self.__biaVar([_outWidth], name='bia', )
             _flatRs = tf.reshape(_in, [-1, _depth * _height * _width * _inChannels], name='flatRs', )
             _fcRs = tf.nn.relu(tf.matmul(_flatRs, _weight) + _bia, name='fcRs', )
 
@@ -291,8 +276,8 @@ class CmTrainer(Moduler):
             _inWidth = _in.get_shape()[1].value
             _outWidth = fvLen
 
-            _weight = weightVar([_inWidth, _outWidth], name='weight', )
-            _bia = biaVar([_outWidth], name='bia', )
+            _weight = self.__weightVar([_inWidth, _outWidth], name='weight', )
+            _bia = self.__biaVar([_outWidth], name='bia', )
             fv = tf.add(tf.matmul(_in, _weight), _bia, name='fv', )
 
             tf.summary.histogram('weight', _weight)
@@ -328,8 +313,8 @@ class CmTrainer(Moduler):
 
         with tf.name_scope('internalOutput') as _:
             _output = tf.reshape(_output, [-1] + [fvLen * lstmSize])
-            _weight = tf.Variable(tf.truncated_normal([fvLen * lstmSize, fvLen], stddev=0.01))
-            _bia = tf.zeros([fvLen])
+            _weight = self.__weightVar([fvLen * lstmSize, fvLen], name='weight', )
+            _bia = self.__biaVar([fvLen], name='bia', )
             predictFv = tf.add(tf.matmul(_output, _weight), _bia, name="predictFv")
 
             addVec2summary(fv, "predictFv")
@@ -370,14 +355,22 @@ class CmTrainer(Moduler):
         return lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape
 
     def __constructtargetBehaviorResolve(self, predictFv, fvLen):
-        _weight = tf.Variable(tf.truncated_normal([fvLen, 1], stddev=0.01))
-        _bia = tf.zeros([1])
+        _weight = self.__weightVar([fvLen, 1], name='weight', )
+        _bia = self.__biaVar([1], name='bia', )
         y = tf.add(tf.matmul(predictFv, _weight), _bia, name="y")
 
         tf.summary.histogram("weight", _weight)
         tf.summary.histogram("bia", _bia)
 
         return y
+
+    def __weightVar(self, shape, name=None, ):
+        initial = tf.truncated_normal(shape, stddev=0.1)
+        return tf.Variable(initial, name=name, )
+
+    def __biaVar(self, shape, name=None, ):
+        initial = tf.constant(0.1, shape=shape)
+        return tf.Variable(initial, name=name, )
 
     class _RunConf(object):
         def __init__(self, batchSize, keepProb):

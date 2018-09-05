@@ -307,10 +307,9 @@ class CnnTrainer(Moduler):
             lossR2 = tf.subtract(tf.ones([]), tf.div(tf.reduce_sum(_lossSe), tf.reduce_sum(_lossSr)),
                                  name="lossR2")  # r2
         with tf.name_scope("lossRrmse") as _:
-            lossRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossRrmse")
+            lossRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossRrmse")  # relative root mean squared error
         with tf.name_scope("lossMape") as _:
-            lossMape = tf.div(tf.reduce_sum(tf.div(_lossAe, y_ + 0.01)), _batchSizeF,
-                              name="lossMape")
+            lossMape = tf.div(tf.reduce_sum(tf.div(_lossAe, y_ + 0.01)), _batchSizeF, name="lossMape")
 
         tf.summary.scalar('lossMse', lossMse)
         tf.summary.scalar('lossRmse', lossRmse)

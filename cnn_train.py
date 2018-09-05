@@ -75,6 +75,8 @@ def main():
     batchSizeConf = options.batchSizeConf
     keepProbConf = options.keepProbConf
 
+    learnRate = options.learnRate
+
     cpuCoreCnt = options.cpuCoreCnt
     gpuNos = options.gpuNos
     gpuMemFraction = options.gpuMemFraction
@@ -121,6 +123,7 @@ def main():
         wkdir=wkdir,
         convShape=convShape, convStrides=convStrides, poolShape=poolShape, poolStrides=poolStrides, convCnts=convCnts,
         batchSizeConf=batchSizeConf, keepProbConf=keepProbConf,
+        learnRate=learnRate,
         cpuCoreCnt=cpuCoreCnt, gpuNos=gpuNos, gpuMemFraction=gpuMemFraction,
         iteration=iteration, printProgressPerStepCnt=printProgressPerStepCnt,
     ).run()

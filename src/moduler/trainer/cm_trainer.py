@@ -18,6 +18,7 @@ class CmTrainer(Moduler):
             convShape=None, convStrides=None, poolShape=None, poolStrides=None, convCnts=None,
             lstmSize=None,
             batchSizeConf=None, keepProbConf=None,
+            learnRate=None,
             cpuCoreCnt=None, gpuNos=None, gpuMemFraction=None,
             iteration=None, printProgressPerStepCnt=None,
     ):
@@ -37,6 +38,8 @@ class CmTrainer(Moduler):
 
         self.batchSizeConf = batchSizeConf
         self.keepProbConf = keepProbConf
+
+        self.learnRate = learnRate
 
         self.cpuCoreCnt = cpuCoreCnt
         self.gpuNos = gpuNos
@@ -130,11 +133,12 @@ class CmTrainer(Moduler):
             tf.summary.histogram("predictY", y)
 
         with tf.name_scope('optimize') as _:
+            learnRate = self.learnRate
             lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape = self.__constructLoss(y, y_, batchSize)
 
             with tf.name_scope("internalOptimize") as _:
                 logging.info("optimize by lossMse")
-                optimize = tf.train.AdamOptimizer().minimize(lossMse, name="optimize")
+                optimize = tf.train.AdamOptimizer(learning_rate=learnRate).minimize(lossMse, name="optimize")
 
             evaluator = CmTrainer._Evaluator(lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape)
             trainer = CmTrainer._Trainer(optimize)

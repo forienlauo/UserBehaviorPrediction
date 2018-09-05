@@ -18,7 +18,7 @@ class CmTrainer(Moduler):
             convShape=None, convStrides=None, poolShape=None, poolStrides=None, convCnts=None,
             lstmSize=None,
             batchSizeConf=None, keepProbConf=None,
-            learnRate=None,
+            learnRate=None, diff1=None, diff2=None,
             cpuCoreCnt=None, gpuNos=None, gpuMemFraction=None,
             iteration=None, printProgressPerStepCnt=None,
     ):
@@ -40,6 +40,8 @@ class CmTrainer(Moduler):
         self.keepProbConf = keepProbConf
 
         self.learnRate = learnRate
+        self.diff1 = diff1
+        self.diff2 = diff2
 
         self.cpuCoreCnt = cpuCoreCnt
         self.gpuNos = gpuNos
@@ -328,6 +330,8 @@ class CmTrainer(Moduler):
         return predictFv
 
     def __constructLoss(self, y, y_, batchSize):
+        diff1 = self.diff1
+        diff2 = self.diff2
         # cannot define name in the way below
         # lossMse = tf.losses.mean_squared_error(y_, y)
         _batchSizeF = tf.cast(batchSize, tf.float32)
@@ -345,8 +349,10 @@ class CmTrainer(Moduler):
                                  name="lossR2")  # r2
         with tf.name_scope("lossRrmse") as _:
             lossRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossRrmse")  # relative root mean squared error
+            lossRrmse = tf.maximum(0.0, lossRrmse + diff1)
         with tf.name_scope("lossMape") as _:
             lossMape = tf.div(tf.reduce_sum(tf.div(_lossAe, y_ + 0.01)), _batchSizeF, name="lossMape")
+            lossMape = tf.maximum(0.0, lossMape + diff2)
 
         tf.summary.scalar('lossMse', lossMse)
         tf.summary.scalar('lossRmse', lossRmse)
@@ -361,7 +367,7 @@ class CmTrainer(Moduler):
         _weight = self.__weightVar([fvLen, 1], name='weight', )
         _bia = self.__biaVar([1], name='bia', )
         _y = tf.add(tf.matmul(predictFv, _weight), _bia)
-        y = tf.maximum(_y, 0, name="y")
+        y = tf.maximum(0.0, _y, name="y")
 
         tf.summary.histogram("weight", _weight)
         tf.summary.histogram("bia", _bia)

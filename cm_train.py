@@ -42,6 +42,8 @@ def __parseArgs():
     parser.add_argument("-k", "--keepProbConf", type=float, required=False, default=0.5, help=u"keepProb configured")
 
     parser.add_argument("-r", "--learnRate", type=float, required=False, default=0.001, help=u"learn rate")
+    parser.add_argument("-d1", "--diff1", type=float, required=False, default=0, help=u"diff1 in evaluating")
+    parser.add_argument("-d2", "--diff2", type=float, required=False, default=0, help=u"diff2 in evaluating")
 
     parser.add_argument("-C", "--cpuCoreCnt", type=int, required=False, default=1, help=u"cpuCore cnt")
     parser.add_argument("-G", "--gpuNos", required=False, default=None, help=u"gpu no s, separated by comma")
@@ -82,6 +84,8 @@ def main():
     keepProbConf = options.keepProbConf
 
     learnRate = options.learnRate
+    diff1 = options.diff1
+    diff2 = options.diff2
 
     cpuCoreCnt = options.cpuCoreCnt
     gpuNos = options.gpuNos
@@ -130,7 +134,7 @@ def main():
         convShape=convShape, convStrides=convStrides, poolShape=poolShape, poolStrides=poolStrides, convCnts=convCnts,
         lstmSize=lstmSize,
         batchSizeConf=batchSizeConf, keepProbConf=keepProbConf,
-        learnRate=learnRate,
+        learnRate=learnRate, diff1=diff1, diff2=diff2,
         cpuCoreCnt=cpuCoreCnt, gpuNos=gpuNos, gpuMemFraction=gpuMemFraction,
         iteration=iteration, printProgressPerStepCnt=printProgressPerStepCnt,
     ).run()

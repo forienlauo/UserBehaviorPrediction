@@ -39,6 +39,8 @@ def __parseArgs():
     parser.add_argument("-b", "--batchSizeConf", type=int, required=False, default=20, help=u"batch size configured")
     parser.add_argument("-k", "--keepProbConf", type=float, required=False, default=0.5, help=u"keepProb configured")
 
+    parser.add_argument("-r", "--learnRate", type=float, required=False, default=0.001, help=u"learn rate")
+
     parser.add_argument("-C", "--cpuCoreCnt", type=int, required=False, default=1, help=u"cpuCore cnt")
     parser.add_argument("-G", "--gpuNos", required=False, default=None, help=u"gpu no s, separated by comma")
     parser.add_argument("-M", "--gpuMemFraction", type=float, required=False, default=1.0,

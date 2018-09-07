@@ -284,7 +284,7 @@ class CmTrainer(Moduler):
 
             _weight = self.__weightVar([_inWidth, _outWidth], name='weight', )
             _bia = self.__biaVar([_outWidth], name='bia', )
-            fv = tf.add(tf.matmul(_in, _weight), _bia, name='fv', )
+            fv = tf.nn.relu(tf.matmul(_in, _weight) + _bia, name='fv')
 
             tf.summary.histogram('weight', _weight)
             tf.summary.histogram('bia', _bia)
@@ -321,7 +321,7 @@ class CmTrainer(Moduler):
             _output = tf.reshape(_output, [-1] + [fvLen * lstmSize])
             _weight = self.__weightVar([fvLen * lstmSize, fvLen], name='weight', )
             _bia = self.__biaVar([fvLen], name='bia', )
-            predictFv = tf.add(tf.matmul(_output, _weight), _bia, name="predictFv")
+            predictFv = tf.nn.relu(tf.matmul(_output, _weight) + _bia, name='predictFv')
 
             addVec2summary(fv, "predictFv")
             tf.summary.histogram('weight', _weight)
@@ -367,7 +367,7 @@ class CmTrainer(Moduler):
         _weight = self.__weightVar([fvLen, 1], name='weight', )
         _bia = self.__biaVar([1], name='bia', )
         y = tf.add(tf.matmul(predictFv, _weight), _bia, name="y")
-        
+
         tf.summary.histogram("weight", _weight)
         tf.summary.histogram("bia", _bia)
 

@@ -34,7 +34,7 @@ def __parseArgs():
     parser.add_argument("-pst", "--poolStrides", required=False, default="2,2,2",
                         help=u"shared pool strides[depth, height, width], dimensions separated by comma, supports only 3D pool")
     parser.add_argument("-ccs", "--convCnts", required=False, default="64,128,256",
-                        help=u"ConvNeuron cnt s, separated by comma, supported only 3 conv layers")
+                        help=u"ConvNeuron cnt s, separated by comma, supported 2, 3 or 4 conv layers")
 
     parser.add_argument("-l", "--lstmSize", type=int, required=False, default=20, help=u"LSTMCell size")
 

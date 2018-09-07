@@ -329,8 +329,7 @@ class CnnTrainer(Moduler):
     def __constructtargetBehaviorResolve(self, predictFv, fvLen):
         _weight = self.__weightVar([fvLen, 1], name='weight', )
         _bia = self.__biaVar([1], name='bia', )
-        _y = tf.add(tf.matmul(predictFv, _weight), _bia)
-        y = tf.maximum(0.0, _y, name="y")
+        y = tf.add(tf.matmul(predictFv, _weight), _bia, name="y")
 
         tf.summary.histogram("weight", _weight)
         tf.summary.histogram("bia", _bia)

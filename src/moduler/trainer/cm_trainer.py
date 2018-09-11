@@ -183,43 +183,49 @@ class CmTrainer(Moduler):
 
         with tf.name_scope('internalInput') as _:
             ff3d = tf.reshape(x, [batchSize * learnDayCnt] + ff3dShape + [1], name="ff3d")
-            out0 = ff3d
+            out = ff3d
 
             addFf2d2summary(ff3d, "ff3d")
 
-        with tf.name_scope('C1') as _:
-            _in = out0
+        layerNo = 0
+
+        assert len(convCnts) >= 1
+        for convNo in xrange(len(convCnts) - 1):
+            layerNo += 1
+            with tf.name_scope('C%d' % layerNo) as _:
+                _in = out
+                _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
+                _inChannels = _in.get_shape()[4].value
+                _outChannels = convCnts[convNo]
+
+                _weight = self.__weightVar(convShape + [_inChannels, _outChannels], name='weight', )
+                _bia = self.__biaVar([_outChannels], name='bia', )
+                _convRs = tf.nn.relu(
+                    conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
+
+                out = _convRs
+
+                addFf2d2summary(out, "image")
+                tf.summary.histogram('weight', _weight)
+                tf.summary.histogram('bia', _bia)
+
+            layerNo += 1
+            with tf.name_scope('S%d' % layerNo) as _:
+                _in = out
+
+                _poolRs = max_pool3d(
+                    _in, [1] + poolShape + [1], strides=[1] + poolStrides + [1], name='poolRs', )
+
+                out = _poolRs
+
+                addFf2d2summary(out, "image")
+
+        layerNo += 1
+        with tf.name_scope('C%d' % layerNo) as _:
+            _in = out
             _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
             _inChannels = _in.get_shape()[4].value
-            _outChannels = convCnts[0]
-
-            _weight = self.__weightVar(convShape + [_inChannels, _outChannels], name='weight', )
-            _bia = self.__biaVar([_outChannels], name='bia', )
-            # TODO(20180724) split conv node and activate node
-            _convRs = tf.nn.relu(
-                conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
-
-            out = _convRs
-
-            addFf2d2summary(out, "image")
-            tf.summary.histogram('weight', _weight)
-            tf.summary.histogram('bia', _bia)
-
-        with tf.name_scope('S2') as _:
-            _in = out
-
-            _poolRs = max_pool3d(
-                _in, [1] + poolShape + [1], strides=[1] + poolStrides + [1], name='poolRs', )
-
-            out = _poolRs
-
-            addFf2d2summary(out, "image")
-
-        with tf.name_scope('C3') as _:
-            _in = out
-            _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
-            _inChannels = _in.get_shape()[4].value
-            _outChannels = convCnts[1]
+            _outChannels = convCnts[-1]
 
             _weight = self.__weightVar(
                 convShape + [_inChannels, _outChannels], name='weight', )
@@ -233,35 +239,8 @@ class CmTrainer(Moduler):
             tf.summary.histogram('weight', _weight)
             tf.summary.histogram('bia', _bia)
 
-        with tf.name_scope('S4') as _:
-            _in = out
-
-            _poolRs = max_pool3d(
-                _in, [1] + poolShape + [1], strides=[1] + poolStrides + [1], name='poolRs', )
-
-            out = _poolRs
-
-            addFf2d2summary(out, "image")
-
-        with tf.name_scope('C5') as _:
-            _in = out
-            _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
-            _inChannels = _in.get_shape()[4].value
-            _outChannels = convCnts[2]
-
-            _weight = self.__weightVar(
-                convShape + [_inChannels, _outChannels], name='weight', )
-            _bia = self.__biaVar([_outChannels], name='bia', )
-            _convRs = tf.nn.relu(
-                conv3d(_in, _weight, strides=[1] + convStrides + [1]) + _bia, name='convRs', )
-
-            out = _convRs
-
-            addFf2d2summary(out, "image")
-            tf.summary.histogram('weight', _weight)
-            tf.summary.histogram('bia', _bia)
-
-        with tf.name_scope('F6') as _:
+        layerNo += 1
+        with tf.name_scope('F%d' % layerNo) as _:
             _in = out
             _depth, _height, _width = _in.get_shape()[1].value, _in.get_shape()[2].value, _in.get_shape()[3].value
             _inChannels = _in.get_shape()[4].value
@@ -367,7 +346,7 @@ class CmTrainer(Moduler):
         _weight = self.__weightVar([fvLen, 1], name='weight', )
         _bia = self.__biaVar([1], name='bia', )
         y = tf.add(tf.matmul(predictFv, _weight), _bia, name="y")
-        
+
         tf.summary.histogram("weight", _weight)
         tf.summary.histogram("bia", _bia)
 

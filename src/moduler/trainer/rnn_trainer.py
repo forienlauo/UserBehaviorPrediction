@@ -280,17 +280,19 @@ class RnnTrainer(Moduler):
                 trainFeedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: runConf.keepProbConf,
                                  runInput.x: trainBatch.learnMFf3ds, runInput.y_: trainBatch.predictTbs, }
                 sess.run(optimize, feed_dict=trainFeedDict, options=runOptions, run_metadata=runMetadata)
-                trainSummariesV = summaries.eval(feed_dict=trainFeedDict, session=sess)
-                trainSummaryWriter.add_summary(trainSummariesV, global_step=stopNo)
-
-                testBatch = testData.randomSampleBatch(runConf.batchSizeConf)
-                testFeedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: 1.0,
-                                runInput.x: testBatch.learnMFf3ds, runInput.y_: testBatch.predictTbs, }
-                testSummariesV = summaries.eval(feed_dict=testFeedDict, session=sess)
-                testSummaryWriter.add_summary(testSummariesV, global_step=stopNo)
 
                 # print progress
                 if stopNo % printProgressPerStepCnt == 0:
+                    trainSummariesV = summaries.eval(feed_dict=trainFeedDict, session=sess)
+                    trainSummaryWriter.add_summary(trainSummariesV, global_step=stopNo)
+
+                    testBatch = testData.randomSampleBatch(runConf.batchSizeConf)
+                    testFeedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: 1.0,
+                                    runInput.x: testBatch.learnMFf3ds, runInput.y_: testBatch.predictTbs, }
+                    sess.run(optimize, feed_dict=testFeedDict, options=runOptions, run_metadata=runMetadata)
+                    testSummariesV = summaries.eval(feed_dict=testFeedDict, session=sess)
+                    testSummaryWriter.add_summary(testSummariesV, global_step=stopNo)
+
                     trainEvlRs = evaluator.evaluate(
                         sess,
                         runConf, runInput,

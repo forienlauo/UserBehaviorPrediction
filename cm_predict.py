@@ -118,10 +118,11 @@ def main():
             exp = data.slice(expNo, 1)
             y_ = exp.predictTbs[0]
             y = ys[expNo]
-            mape = -1
-            if y_ != 0:
-                mape = abs(y - y_) / y_
-            _wfile.write("expNo:\t%d\ty_:\t%.4f\ty:\t%.4f\tmape:\t%0.2f" % (expNo, y_, y, mape))
+            correctY = max(0.0, y)
+            mape = abs(correctY - y_) / (y_ + 0.01)
+            _wfile.write(
+                "expNo:\t%d\ty_:\t%.4f\ty:\t%.4f\tcorrectY:\t%.4f\tmape:\t%0.2f"
+                % (expNo, y_, y, correctY, mape))
             _wfile.write("\n")
 
     logging.info("cleaning")

@@ -318,7 +318,6 @@ class CmTrainer(Moduler):
         # cannot define name in the way below
         # lossMse = tf.losses.mean_squared_error(y_, y)
         _batchSizeF = tf.cast(batchSize, tf.float32)
-        # OPT(20181004) use max(0, y) to calculate loss
         with tf.name_scope("lossMse") as _:
             _lossSe = tf.square(tf.subtract(y, y_))  # squared error
             lossMse = tf.div(tf.reduce_sum(_lossSe), _batchSizeF, name="lossMse")  # mean squared error
@@ -332,10 +331,13 @@ class CmTrainer(Moduler):
             lossR2 = tf.subtract(tf.ones([]), tf.div(tf.reduce_sum(_lossSe), tf.reduce_sum(_lossSr)),
                                  name="lossR2")  # r2
         with tf.name_scope("lossRrmse") as _:
-            lossRrmse = tf.div(lossRmse, tf.reduce_mean(y_), name="lossRrmse")  # relative root mean squared error
+            lossRrmse = tf.div(lossRmse, tf.reduce_mean(y_) + 0.01,
+                               name="lossRrmse")  # relative root mean squared error
             lossRrmse = tf.maximum(0.0, lossRrmse + diff1)
         with tf.name_scope("lossMape") as _:
-            lossMape = tf.div(tf.reduce_sum(tf.div(_lossAe, y_ + 0.01)), _batchSizeF, name="lossMape")
+            correctY = tf.maximum(0.0, y, name="correctY")
+            _correctLossAe = tf.abs(tf.subtract(correctY, y_))  # correct abstract error
+            lossMape = tf.div(tf.reduce_sum(tf.div(_correctLossAe, y_ + 0.01)), _batchSizeF, name="lossMape")
             lossMape = tf.maximum(0.0, lossMape + diff2)
 
         tf.summary.scalar('lossMse', lossMse)

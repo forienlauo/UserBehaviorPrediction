@@ -70,6 +70,7 @@ def main():
     targetBehaviorDir = options.targetBehaviorDir
     trainExampleP = options.trainExampleP
     cacheDir = options.cacheDir
+
     wkdir = options.wkdir
 
     convShape = map(int, str(options.convShape).split(","))

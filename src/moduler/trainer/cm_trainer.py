@@ -5,6 +5,7 @@ import os
 import tensorflow as tf
 
 import conf
+from src.common.util import dump_model
 from src.moduler.moduler import Moduler
 
 
@@ -27,6 +28,7 @@ class CmTrainer(Moduler):
         self.testData = testData
         self.wkdir = wkdir
         self.summaryDir = os.path.join(self.wkdir, "summary")
+        self.modelFilePath = os.path.join(self.wkdir, "model", "cm")
 
         self.convShape = convShape
         self.convStrides = convStrides
@@ -69,9 +71,9 @@ class CmTrainer(Moduler):
                 intra_op_parallelism_threads=self.cpuCoreCnt,
             )
 
-        logging.info("start to train.")
         with tf.Session(config=config) as sess:
             runConf.set(self.batchSizeConf, self.keepProbConf)
+            logging.info("start to train")
             trainer.train(
                 sess, self.summaryDir,
                 runConf, runInput,
@@ -79,7 +81,8 @@ class CmTrainer(Moduler):
                 self.testData, evaluator,
             )
 
-            # TODO(20180722) dump model
+            logging.info("dump model into: %s" % self.modelFilePath)
+            dump_model(sess, self.modelFilePath)
 
             # logging.info("start to evaluate.")
             # evaluate_result = evaluator.evaluate(
@@ -91,6 +94,7 @@ class CmTrainer(Moduler):
 
     def __init(self):
         os.mkdir(self.summaryDir)
+        os.mkdir(os.path.dirname(self.modelFilePath))
 
     def __construct(self, ):
         learnDayCnt = conf.TrainerDict.LEARN_DAY_CNT
@@ -314,6 +318,7 @@ class CmTrainer(Moduler):
         # cannot define name in the way below
         # lossMse = tf.losses.mean_squared_error(y_, y)
         _batchSizeF = tf.cast(batchSize, tf.float32)
+        # OPT(20181004) use max(0, y) to calculate loss
         with tf.name_scope("lossMse") as _:
             _lossSe = tf.square(tf.subtract(y, y_))  # squared error
             lossMse = tf.div(tf.reduce_sum(_lossSe), _batchSizeF, name="lossMse")  # mean squared error

@@ -8,6 +8,7 @@ from collections import OrderedDict
 import numpy as np
 
 import conf
+from src.common.usr_exceptions import UserBehaviorPredictionError
 from src.moduler.moduler import Moduler, Stat
 
 
@@ -174,6 +175,15 @@ class CmData(object):
             sampleCnt = self.exampleCnt
         sExpIdxs = np.random.choice(self.exampleCnt, sampleCnt, replace=False)  # s means shuffled
         cmBatch = self.__take(sExpIdxs)
+        return cmBatch
+
+    def slice(self, offset, maxLen):
+        if self.exampleCnt <= offset:
+            raise UserBehaviorPredictionError(
+                "try take from overflow offset(%d from %d)" % (offset, self.exampleCnt))
+        len = min(self.exampleCnt - offset, maxLen)
+        expIdxs = xrange(offset, offset + len)
+        cmBatch = self.__take(expIdxs)
         return cmBatch
 
     def __take(self, idxs):

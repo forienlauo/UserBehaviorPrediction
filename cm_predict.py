@@ -12,6 +12,8 @@ from src.moduler.adapter.cm_data_adapter import \
     CmData as Data
 from src.moduler.predictor.cm_predictor import \
     CmPredictor as Predictor
+# from src.moduler.predictor.simple_predictor import \
+#     SimplePredictor as Predictor
 
 
 def __parseArgs():

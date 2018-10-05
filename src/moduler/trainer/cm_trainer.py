@@ -166,7 +166,10 @@ class CmTrainer(Moduler):
                     loss = lossMale
                 optimize = tf.train.AdamOptimizer(learning_rate=learnRate).minimize(loss, name="optimize")
 
-            evaluator = CmTrainer._Evaluator(lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape)
+            evaluator = CmTrainer._Evaluator(
+                lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape,
+                lossMsle, lossRmsle, lossMale, lossRrmsle, lossMaple,
+            )
             trainer = CmTrainer._Trainer(optimize)
 
         return runConf, runInput, trainer, evaluator
@@ -499,6 +502,7 @@ class CmTrainer(Moduler):
         def __init__(
                 self,
                 lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape,
+                lossMsle, lossRmsle, lossMale, lossRrmsle, lossMaple,
         ):
             super(CmTrainer._Evaluator, self).__init__()
             self.lossMse = lossMse
@@ -508,6 +512,12 @@ class CmTrainer(Moduler):
             self.lossRrmse = lossRrmse
             self.lossMape = lossMape
 
+            self.lossMsle = lossMsle
+            self.lossRmsle = lossRmsle
+            self.lossMale = lossMale
+            self.lossRrmsle = lossRrmsle
+            self.lossMaple = lossMaple
+
         def evaluate(
                 self,
                 sess,
@@ -516,12 +526,17 @@ class CmTrainer(Moduler):
         ):
             feedDict = {runConf.batchSize: cmData.exampleCnt, runConf.keepProb: 1.0,
                         runInput.x: cmData.learnMFf3ds, runInput.y_: cmData.predictTbs, }
-            lossMseV, lossRmseV, lossMaeV, lossR2V, lossRrmseV, lossMapeV = sess.run(
-                [self.lossMse, self.lossRmse, self.lossMae, self.lossR2, self.lossRrmse, self.lossMape],
-                feed_dict=feedDict, )
+            lossMseV, lossRmseV, lossMaeV, lossR2V, lossRrmseV, lossMapeV, \
+            lossMsleV, lossRmsleV, lossMaleV, lossRrmsleV, lossMapleV \
+                = sess.run([
+                self.lossMse, self.lossRmse, self.lossMae, self.lossR2, self.lossRrmse, self.lossMape,
+                self.lossMsle, self.lossRmsle, self.lossMale, self.lossRrmsle, self.lossMaple,
+            ], feed_dict=feedDict, )
             return CmTrainer._Evaluator.Result(
                 cmData.exampleCnt,
                 lossMseV, lossRmseV, lossMaeV, lossR2V, lossRrmseV, lossMapeV,
+                lossMsleV, lossRmsleV, lossMaleV, lossRrmsleV, lossMapleV,
+
             )
 
         class Result(object):
@@ -529,6 +544,7 @@ class CmTrainer(Moduler):
                     self,
                     exampleCnt,
                     lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape,
+                    lossMsle, lossRmsle, lossMale, lossRrmsle, lossMaple,
             ):
                 super(CmTrainer._Evaluator.Result, self).__init__()
                 self.exampleCnt = exampleCnt
@@ -540,10 +556,18 @@ class CmTrainer(Moduler):
                 self.lossRrmse = lossRrmse
                 self.lossMape = lossMape
 
+                self.lossMsle = lossMsle
+                self.lossRmsle = lossRmsle
+                self.lossMale = lossMale
+                self.lossRrmsle = lossRrmsle
+                self.lossMaple = lossMaple
+
             def __str__(self):
                 return (
                     "result {example_cnt: %d,"
-                    " lossMse: %.6f, lossRmse: %.6f, lossMae: %.6f, lossR2: %.6f, lossRrmse: %.6f, lossMape: %.6f}"
+                    " lossMse: %.6f, lossRmse: %.6f, lossMae: %.6f, lossR2: %.6f, lossRrmse: %.6f, lossMape: %.6f,"
+                    " lossMsle: %.6f, lossRmsle: %.6f, lossMale: %.6f, lossRrmsle: %.6f, lossMaple: %.6f}"
                     % (self.exampleCnt,
-                       self.lossMse, self.lossRmse, self.lossMae, self.lossR2, self.lossRrmse, self.lossMape,)
+                       self.lossMse, self.lossRmse, self.lossMae, self.lossR2, self.lossRrmse, self.lossMape,
+                       self.lossMsle, self.lossRmsle, self.lossMale, self.lossRrmsle, self.lossMaple,)
                 )

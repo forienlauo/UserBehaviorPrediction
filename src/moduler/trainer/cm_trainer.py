@@ -5,6 +5,7 @@ import os
 import tensorflow as tf
 
 import conf
+from src.common.usr_exceptions import InvalidArgError
 from src.common.util import dump_model
 from src.moduler.moduler import Moduler
 
@@ -19,7 +20,7 @@ class CmTrainer(Moduler):
             convShape=None, convStrides=None, poolShape=None, poolStrides=None, convCnts=None,
             lstmSize=None,
             batchSizeConf=None, keepProbConf=None,
-            learnRate=None, diff1=None, diff2=None,
+            error=None, learnRate=None, diff1=None, diff2=None,
             cpuCoreCnt=None, gpuNos=None, gpuMemFraction=None,
             iteration=None, printProgressPerStepCnt=None,
     ):
@@ -41,6 +42,7 @@ class CmTrainer(Moduler):
         self.batchSizeConf = batchSizeConf
         self.keepProbConf = keepProbConf
 
+        self.error = error
         self.learnRate = learnRate
         self.diff1 = diff1
         self.diff2 = diff2
@@ -50,6 +52,9 @@ class CmTrainer(Moduler):
         self.gpuMemFraction = gpuMemFraction
         self.iteration = iteration
         self.printProgressPerStepCnt = printProgressPerStepCnt
+
+        if error not in ("MSE", "MAE", "MSLE", "MALE"):
+            raise InvalidArgError("invalid error: %s" % error)
 
     def run(self):
         self.__init()
@@ -139,14 +144,27 @@ class CmTrainer(Moduler):
             tf.summary.histogram("predictY", y)
 
         with tf.name_scope('optimize') as _:
+            error = self.error
             learnRate = self.learnRate
             lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape, \
             lossMsle, lossRmsle, lossMale, lossRrmsle, lossMaple = \
                 self.__constructLoss(y, y_, batchSize)
 
             with tf.name_scope("internalOptimize") as _:
-                logging.info("optimize by lossMse")
-                optimize = tf.train.AdamOptimizer(learning_rate=learnRate).minimize(lossMse, name="optimize")
+                loss = None
+                if error == "MSE":
+                    logging.info("optimize by lossMse")
+                    loss = lossMape
+                elif error == "MAE":
+                    logging.info("optimize by lossMae")
+                    loss = lossMae
+                elif error == "MSLE":
+                    logging.info("optimize by lossMsle")
+                    loss = lossMsle
+                elif error == "MALE":
+                    logging.info("optimize by lossMale")
+                    loss = lossMale
+                optimize = tf.train.AdamOptimizer(learning_rate=learnRate).minimize(loss, name="optimize")
 
             evaluator = CmTrainer._Evaluator(lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape)
             trainer = CmTrainer._Trainer(optimize)

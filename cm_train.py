@@ -41,6 +41,7 @@ def __parseArgs():
     parser.add_argument("-b", "--batchSizeConf", type=int, required=False, default=20, help=u"batch size configured")
     parser.add_argument("-k", "--keepProbConf", type=float, required=False, default=0.5, help=u"keepProb configured")
 
+    parser.add_argument("-e", "--error", required=False, default="MSE", help=u"error / loss for optimization")
     parser.add_argument("-r", "--learnRate", type=float, required=False, default=0.001, help=u"learn rate")
     parser.add_argument("-d1", "--diff1", type=float, required=False, default=0, help=u"diff1 in evaluating")
     parser.add_argument("-d2", "--diff2", type=float, required=False, default=0, help=u"diff2 in evaluating")
@@ -84,6 +85,7 @@ def main():
     batchSizeConf = options.batchSizeConf
     keepProbConf = options.keepProbConf
 
+    error = options.error
     learnRate = options.learnRate
     diff1 = options.diff1
     diff2 = options.diff2
@@ -98,6 +100,7 @@ def main():
 
     force = options.force
 
+    error = error.upper()
     logLevel = logLevel.upper()
 
     # TODO(20180630) check args
@@ -135,7 +138,7 @@ def main():
         convShape=convShape, convStrides=convStrides, poolShape=poolShape, poolStrides=poolStrides, convCnts=convCnts,
         lstmSize=lstmSize,
         batchSizeConf=batchSizeConf, keepProbConf=keepProbConf,
-        learnRate=learnRate, diff1=diff1, diff2=diff2,
+        error=error, learnRate=learnRate, diff1=diff1, diff2=diff2,
         cpuCoreCnt=cpuCoreCnt, gpuNos=gpuNos, gpuMemFraction=gpuMemFraction,
         iteration=iteration, printProgressPerStepCnt=printProgressPerStepCnt,
     ).run()

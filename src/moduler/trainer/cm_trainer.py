@@ -140,7 +140,9 @@ class CmTrainer(Moduler):
 
         with tf.name_scope('optimize') as _:
             learnRate = self.learnRate
-            lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape = self.__constructLoss(y, y_, batchSize)
+            lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape, \
+            lossMsle, lossRmsle, lossMale, lossRrmsle, lossMaple = \
+                self.__constructLoss(y, y_, batchSize)
 
             with tf.name_scope("internalOptimize") as _:
                 logging.info("optimize by lossMse")
@@ -340,6 +342,26 @@ class CmTrainer(Moduler):
             lossMape = tf.div(tf.reduce_sum(tf.div(_correctLossAe, y_ + 0.01)), _batchSizeF, name="lossMape")
             lossMape = tf.maximum(0.0, lossMape + diff2)
 
+        with tf.name_scope("lossMsle") as _:
+            _lossSle = tf.square(tf.log_sigmoid(1.0 - y) - tf.log_sigmoid(1.0 - y_))  # squared log error
+            lossMsle = tf.div(tf.reduce_sum(_lossSle), _batchSizeF, name="lossMsle")  # mean squared log error
+        with tf.name_scope("lossRmsle") as _:
+            lossRmsle = tf.sqrt(lossMsle, name="lossRmsle")  # root mean squared error
+        with tf.name_scope("lossMale") as _:
+            _lossAle = tf.abs(tf.log_sigmoid(1.0 - y) - tf.log_sigmoid(1.0 - y_))  # abstract log error
+            lossMale = tf.div(tf.reduce_sum(_lossAle), _batchSizeF, name="lossMale")  # mean abstract log error
+        with tf.name_scope("lossRrmsle") as _:
+            lossRrmsle = tf.div(lossRmse, tf.reduce_mean(-tf.log_sigmoid(1.0 - y_)),
+                                name="lossRrmsle")  # relative root mean squared error
+            lossRrmsle = tf.maximum(0.0, lossRrmsle + diff1)
+        with tf.name_scope("lossMape") as _:
+            # correctY = tf.maximum(0.0, y, name="correctY")
+            _correctlossAle = tf.abs(
+                tf.log_sigmoid(1.0 - correctY) - tf.log_sigmoid(1.0 - y_))  # correct abstract log error
+            lossMaple = tf.div(tf.reduce_sum(tf.div(
+                _correctlossAle, -tf.log_sigmoid(1.0 - y_))), _batchSizeF, name="lossMaple")
+            lossMaple = tf.maximum(0.0, lossMaple + diff2)
+
         tf.summary.scalar('lossMse', lossMse)
         tf.summary.scalar('lossRmse', lossRmse)
         tf.summary.scalar('lossMae', lossMae)
@@ -347,7 +369,15 @@ class CmTrainer(Moduler):
         tf.summary.scalar('lossRrmse', lossRrmse)
         tf.summary.scalar('lossMape', lossMape)
 
-        return lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape
+        tf.summary.scalar('lossMsle', lossMsle)
+        tf.summary.scalar('lossRmsle', lossRmsle)
+        tf.summary.scalar('lossMale', lossMale)
+        tf.summary.scalar('lossRrmsle', lossRrmsle)
+        tf.summary.scalar('lossMaple', lossMaple)
+
+        return \
+            lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape, \
+            lossMsle, lossRmsle, lossMale, lossRrmsle, lossMaple
 
     def __constructtargetBehaviorResolve(self, predictFv, fvLen):
         _weight = self.__weightVar([fvLen, 1], name='weight', )

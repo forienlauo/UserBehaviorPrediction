@@ -419,7 +419,6 @@ class CmTrainer(Moduler):
                     testBatch = testData.randomSampleBatch(runConf.batchSizeConf)
                     testFeedDict = {runConf.batchSize: runConf.batchSizeConf, runConf.keepProb: 1.0,
                                     runInput.x: testBatch.learnMFf3ds, runInput.y_: testBatch.predictTbs, }
-                    sess.run(optimize, feed_dict=testFeedDict, options=runOptions, run_metadata=runMetadata)
                     testSummariesV = summaries.eval(feed_dict=testFeedDict, session=sess)
                     testSummaryWriter.add_summary(testSummariesV, global_step=stopNo)
 

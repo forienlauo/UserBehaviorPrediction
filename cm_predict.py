@@ -12,6 +12,8 @@ from src.moduler.adapter.cm_data_adapter import \
     CmData as Data
 from src.moduler.predictor.cm_predictor import \
     CmPredictor as Predictor
+
+
 # from src.moduler.predictor.simple_predictor import \
 #     SimplePredictor as Predictor
 
@@ -62,15 +64,30 @@ def main():
 
     force = options.force
 
+    return run(
+        modelFilePath,
+        featureFrame3dDir, targetBehaviorDir, cacheDir,
+        wkdir,
+        cpuCoreCnt, gpuNos, gpuMemFraction,
+        logLevel,
+        force,
+    )
+
+
+def run(
+        modelFilePath=None,
+        featureFrame3dDir=None, targetBehaviorDir=None, cacheDir=None,
+        wkdir=None,
+        cpuCoreCnt=None, gpuNos=None, gpuMemFraction=None,
+        logLevel=None,
+        force=None,
+):
     logLevel = logLevel.upper()
-
     # TODO(20180630) check args
-
     logging.info("initing")
     rc = __init(logLevel, wkdir, force)
     if rc != 0:
         return rc
-
     logging.info("loading data")
     if cacheDir is not None and os.path.isdir(cacheDir):
         logging.info("loading from cacheDir: %s" % cacheDir)
@@ -87,7 +104,6 @@ def main():
             logging.info("dumping to cacheDir: %s" % cacheDir)
             os.mkdir(cacheDir)
             Data.dumpToCacheDir(data, cacheDir)
-
     logging.info("predicting with combined model")
     predictor = Predictor(
         modelFilePath=modelFilePath,
@@ -96,7 +112,6 @@ def main():
     predictor.init()
     ys, lossMse, lossRmse, lossMae, lossR2, lossRrmse, lossMape = predictor.predict(data)
     predictor.close()
-
     logging.info("dumping predict result")
     summaryFilePath = os.path.join(wkdir, "summary.txt")
     with open(summaryFilePath, "w") as _wfile:
@@ -126,10 +141,8 @@ def main():
                 "expNo:\t%d\ty_:\t%.4f\ty:\t%.4f\tcorrectY:\t%.4f\tmape:\t%0.2f"
                 % (expNo, y_, y, correctY, mape))
             _wfile.write("\n")
-
     logging.info("cleaning")
     __clean()
-
     return 0
 
 

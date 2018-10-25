@@ -58,7 +58,7 @@ class Processor(Moduler):
         )
         cleaner.run()
         if not cleaner.checkExistCleanData():
-            logging.warn("No __clean cdr or property")
+            logging.warn("No clean cdr or property")
             return
 
         Translator(

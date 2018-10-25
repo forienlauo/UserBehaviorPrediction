@@ -41,6 +41,8 @@ def __parseArgs():
     parser.add_argument("-b", "--batchSizeConf", type=int, required=False, default=20, help=u"batch size configured")
     parser.add_argument("-k", "--keepProbConf", type=float, required=False, default=0.5, help=u"keepProb configured")
 
+    parser.add_argument("-i", "--iteration", type=int, required=False, default=100, help=u"train step iteration")
+
     parser.add_argument("-e", "--error", required=False, default="MSE", help=u"error / loss for optimization")
     parser.add_argument("-r", "--learnRate", type=float, required=False, default=0.001, help=u"learn rate")
     parser.add_argument("-d1", "--diff1", type=float, required=False, default=0, help=u"diff1 in evaluating")
@@ -50,10 +52,9 @@ def __parseArgs():
     parser.add_argument("-G", "--gpuNos", required=False, default=None, help=u"gpu no s, separated by comma")
     parser.add_argument("-M", "--gpuMemFraction", type=float, required=False, default=1.0,
                         help=u"per process gpu memory fraction")
-    parser.add_argument("-I", "--iteration", type=int, required=False, default=100, help=u"train step iteration")
+
     parser.add_argument("-S", "--printProgressPerStepCnt", type=int, required=False, default=10,
                         help=u"print progress per step cnt")
-
     parser.add_argument("-L", "--logLevel", required=False, default="info", help=u"log level")
 
     parser.add_argument("-F", "--force", action="store_true", required=False, default=False,
@@ -85,6 +86,8 @@ def main():
     batchSizeConf = options.batchSizeConf
     keepProbConf = options.keepProbConf
 
+    iteration = options.iteration
+
     error = options.error
     learnRate = options.learnRate
     diff1 = options.diff1
@@ -93,23 +96,45 @@ def main():
     cpuCoreCnt = options.cpuCoreCnt
     gpuNos = options.gpuNos
     gpuMemFraction = options.gpuMemFraction
-    iteration = options.iteration
-    printProgressPerStepCnt = options.printProgressPerStepCnt
 
+    printProgressPerStepCnt = options.printProgressPerStepCnt
     logLevel = options.logLevel
 
     force = options.force
 
+    return run(
+        featureFrame3dDir, targetBehaviorDir, trainExampleP, cacheDir,
+        wkdir,
+        convShape, convStrides, poolShape, poolStrides, convCnts,
+        lstmSize,
+        batchSizeConf, keepProbConf,
+        iteration,
+        error, learnRate, diff1, diff2,
+        cpuCoreCnt, gpuNos, gpuMemFraction,
+        printProgressPerStepCnt, logLevel,
+        force,
+    )
+
+
+def run(
+        featureFrame3dDir=None, targetBehaviorDir=None, trainExampleP=None, cacheDir=None,
+        wkdir=None,
+        convShape=None, convStrides=None, poolShape=None, poolStrides=None, convCnts=None,
+        lstmSize=None,
+        batchSizeConf=None, keepProbConf=None,
+        iteration=None,
+        error=None, learnRate=None, diff1=None, diff2=None,
+        cpuCoreCnt=None, gpuNos=None, gpuMemFraction=None,
+        printProgressPerStepCnt=None, logLevel=None,
+        force=None,
+):
     error = error.upper()
     logLevel = logLevel.upper()
-
     # TODO(20180630) check args
-
     logging.info("initing")
     rc = __init(logLevel, wkdir, force)
     if rc != 0:
         return rc
-
     logging.info("loading data")
     if cacheDir is not None and os.path.isdir(cacheDir):
         logging.info("loading from cacheDir: %s" % cacheDir)
@@ -126,11 +151,9 @@ def main():
             logging.info("dumping to cacheDir: %s" % cacheDir)
             os.mkdir(cacheDir)
             Data.dumpToCacheDir(data, cacheDir)
-
     logging.info("splitting data for train(%f) and test(%f)" % (trainExampleP, 1.0 - trainExampleP))
     trainData, testData = data.splitTrainTest(trainExampleP)
     del data
-
     logging.info("training combined model")
     Trainer(
         trainData=trainData, testData=testData,
@@ -142,10 +165,8 @@ def main():
         cpuCoreCnt=cpuCoreCnt, gpuNos=gpuNos, gpuMemFraction=gpuMemFraction,
         iteration=iteration, printProgressPerStepCnt=printProgressPerStepCnt,
     ).run()
-
     logging.info("cleaning")
     __clean()
-
     return 0
 
 

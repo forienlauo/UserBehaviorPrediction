@@ -110,11 +110,8 @@ ENV/
 .DS_Store
 
 # user conf
-resource/
-tmp/
-tmp.*
+/resource/
+/tmp/
+/tmp.*
 MNIST_data/
-log/
-sample/
 nohup.out
-

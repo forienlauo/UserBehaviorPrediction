@@ -10,7 +10,7 @@ import sys
 
 import conf
 from src.common.util import getExceptionTrace
-from src.processor import Processor
+from src.moduler.processor import Processor
 
 
 def __parseArgs():
@@ -49,6 +49,22 @@ def main():
 
     force = options.force
 
+    return run(
+        cdrDir=cdrDir, propertyDir=propertyDir,
+        wkdir=wkdir,
+        workerCnt=workerCnt, maxTaskCnt=maxTaskCnt,
+        logLevel=logLevel,
+        force=force,
+    )
+
+
+def run(
+        cdrDir=None, propertyDir=None,
+        wkdir=None,
+        workerCnt=None, maxTaskCnt=None,
+        logLevel=None,
+        force=None,
+):
     logLevel = logLevel.upper()
     # TODO(20180630) check args
 
@@ -164,7 +180,7 @@ def mapCdr(cdrDir, maxTaskCnt, tmpCdrDir):
     return cdrDirsBy_task
 
 
-# TODO(20180708) can't def func work() in func main()... I don't why, but it works
+# TODO(20180708) can't def func work() in func main()... I don't know why, but it works
 def work(taskNo, processor):
     if os.path.isdir(processor.wkdir):
         shutil.rmtree(processor.wkdir)

@@ -84,14 +84,12 @@ class FeatureFrame3dConstructor(Moduler):
         logging.debug("dump first row format of FeatureFrame: %s" % self.ffFirstRowFmtFilePath)
         dumpFormatDict(self.ffFirstRowFmt, self.ffFirstRowFmtFilePath)
 
-        # TODO(20180703) copy && shuffle
         featureFrameDir = os.path.join(self.ff3TmpDir, "featureFrame")
         os.mkdir(featureFrameDir)
         self.__copyAndShuffle(joinDir, featureFrameDir)
         logging.debug("dump shuffle format of FeatureFrame: %s" % self.shuffleFmtFilePath)
         dumpFormatDict(self.shuffleFmt, self.shuffleFmtFilePath)
 
-        # TODO(20180703) construct
         constructDir = os.path.join(self.ff3TmpDir, "construct")
         os.mkdir(constructDir)
         self.__constructFeatureFrame3d(featureFrameDir, constructDir)
